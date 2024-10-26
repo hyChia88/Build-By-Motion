@@ -1,2 +1,4 @@
 text = "hello, git!"
-print(text)
+
+text2 = "new"
+print(text2)

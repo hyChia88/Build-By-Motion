@@ -1,0 +1,2 @@
+check = 'text'
+print(check)
