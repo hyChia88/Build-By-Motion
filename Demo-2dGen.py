@@ -3,9 +3,9 @@ import math
 
 class Grid3D:
     def __init__(self):
-        self.xSize = 4
-        self.ySize = 4
-        self.zSize = 4
+        self.xSize = 6
+        self.ySize = 6
+        self.zSize = 6
         self.board = [[[None for x in range(self.xSize)] 
                       for y in range(self.ySize)] 
                       for z in range(self.zSize)]
@@ -28,17 +28,20 @@ class Grid3D:
 
 def onAppStart(app):
     app.grid = Grid3D()
-    app.cubeSize = 80
+    app.cubeSize = 30
     app.currentX = 0
     app.currentY = 0
     app.currentZ = 0
+
     app.rotationY = math.pi/4
     app.rotationX = math.pi/6
     app.showPreview = True
+
     app.boardLeft = 200
     app.boardTop = 100
     app.boardWidth = 600
     app.boardHeight = 600
+
     app.dragging = False
     app.lastMouseX = 0
     app.lastMouseY = 0

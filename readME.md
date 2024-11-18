@@ -1,6 +1,7 @@
 3D sculpture generate app
 ==========================
-It will be smtg like tetris3D (framework), and advanced with adding pattern rules btwn block, and block itself can be upgraded with fractal rules.
+1. Project Title and Description
+It will be smtg like tetris3D (framework), and advanced with adding pattern rules btwn block, and block itself can be upgraded with fractal rules. (using fractal to subdivide the corner)
 * creating board in 3D, def cell size.
 * def a few pieces by 0,1 (possible to load stl and "translate it to my board?")
 * def generate rules: r/s btwn pieces, adv pieces
