@@ -178,7 +178,7 @@ def drawArrow(centerX, centerY, angle, length, color='black'):
     
     drawPolygon(endX, endY, point1X, point1Y, point2X, point2Y, fill=color)
 
-def drawMovementGuide(app):
+def drawMovemenyoutGuide(app):
     centerX, centerY = 100, 700
     radius = 30
     
