@@ -190,7 +190,7 @@ def drawGrid(app):
     for _, (x, y, z), isPreview in cubes_to_draw:
         drawCube(app, x, y, z, color='grey' if isPreview else 'blue', 
                  isPreview=isPreview)
-
+'''
 def drawMovementGuide(app):
     centerX, centerY = 100, 700
     radius = 30
@@ -207,7 +207,7 @@ def drawMovementGuide(app):
         labelX = centerX + math.cos(angle) * (radius + 15)
         labelY = centerY + math.sin(angle) * (radius + 15)
         drawLabel(direction, labelX, labelY, size=12)
-
+'''
 def onKeyPress(app, key):
     if key == 'w' and app.smoothLevel < app.maxSmoothLevel:
         app.smoothLevel += 1
@@ -257,32 +257,32 @@ def onMouseDrag(app, mouseX, mouseY):
         app.lastMouseX = mouseX
         app.lastMouseY = mouseY
 
-def inputPosition(app):
-    try:
-        # Get input from user
-        xStr = app.getTextInput('Enter X position (0-3):')
-        if xStr is None: return
-        yStr = app.getTextInput('Enter Y position (0-3):')
-        if yStr is None: return
-        zStr = app.getTextInput('Enter Z position (0-3):')
-        if zStr is None: return
+# def inputPosition(app):
+#     try:
+#         # Get input from user
+#         xStr = app.getTextInput('Enter X position (0-3):')
+#         if xStr is None: return
+#         yStr = app.getTextInput('Enter Y position (0-3):')
+#         if yStr is None: return
+#         zStr = app.getTextInput('Enter Z position (0-3):')
+#         if zStr is None: return
         
-        # Convert to integers
-        x = int(xStr)
-        y = int(yStr)
-        z = int(zStr)
+#         # Convert to integers
+#         x = int(xStr)
+#         y = int(yStr)
+#         z = int(zStr)
         
-        # Validate positions
-        if (0 <= x < app.grid.xSize and 
-            0 <= y < app.grid.ySize and 
-            0 <= z < app.grid.zSize):
-            app.currentX = x
-            app.currentY = y
-            app.currentZ = z
-        else:
-            app.showMessage('Invalid position! Use values between 0 and 3.')
-    except ValueError:
-        app.showMessage('Please enter valid numbers!')
+#         # Validate positions
+#         if (0 <= x < app.grid.xSize and 
+#             0 <= y < app.grid.ySize and 
+#             0 <= z < app.grid.zSize):
+#             app.currentX = x
+#             app.currentY = y
+#             app.currentZ = z
+#         else:
+#             app.showMessage('Invalid position! Use values between 0 and 3.')
+#     except ValueError:
+#         app.showMessage('Please enter valid numbers!')
 
 def onMouseRelease(app, mouseX, mouseY):
     app.dragging = False
@@ -305,7 +305,7 @@ def redrawAll(app):
     drawLabel('R: Reset game', 400, 330, size=16)
     drawLabel('P: Input position directly', 400, 360, size=16)
     
-    drawMovementGuide(app)
+    # drawMovementGuide(app)
     
     drawLabel('Red: X-axis', 700, 700, fill='red', size=14)
     drawLabel('Green: Y-axis', 700, 720, fill='green', size=14)

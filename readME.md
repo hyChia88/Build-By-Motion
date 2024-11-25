@@ -30,6 +30,69 @@ PatternGenerator.py --> can be cool algo to generate blocks, generate connector 
 ##==============================
 FractalLevel.py --> subd the corner
 ##==============================
+fractal level 0, cell size = 1/1
+[F,T,T,F]
+[T,T,T,T]
+[T,T,T,T]
+[F,T,T,F]
+
+fractal level 1, cell size = 1/2
+[F,F,T,T,T,T,F,F]
+[F,T,T,T,T,T,T,F]
+[T,T,T,T,T,T,T,T]
+[T,T,T,T,T,T,T,T]
+[T,T,T,T,T,T,T,T]
+[T,T,T,T,T,T,T,T]
+[F,T,T,T,T,T,T,F]
+[F,F,T,T,T,T,F,F]
+
+fractal level 2, cell size = 1/4
+[F,F,F,F,T,T,T,T,T,T,T,T,F,F,F,F]
+[F,F,T,T,T,T,T,T,T,T,T,T,T,T,F,F]
+[F,T,T,T,T,T,T,T,T,T,T,T,T,T,T,F]
+[F,T,T,T,T,T,T,T,T,T,T,T,T,T,T,F]
+[T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T]
+[T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T]
+[T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T]
+[T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T]
+[F,T,T,T,T,T,T,T,T,T,T,T,T,T,T,F]
+[F,F,T,T,T,T,T,T,T,T,T,T,T,T,F,F]
+[F,F,F,F,T,T,T,T,T,T,T,T,F,F,F,F]
+
+Another example:
+fractal level 0, cell size = 1/1
+[1,1,1,1]
+[1,1,1,1]
+[0,0,1,1]
+[0,0,1,1]
+
+fractal level 1, cell size = 1/2
+[0,1,1,1,1,1,1,0]
+[1,1,1,1,1,1,1,1]
+[1,1,1,1,1,1,1,1]
+[0,1,1,1,1,1,1,1]
+[0,0,0,1,1,1,1,1]
+[0,0,0,0,1,1,1,1]
+[0,0,0,0,1,1,1,1]
+[0,0,0,0,0,1,1,0]
+
+fractal level 2, cell size = 1/4
+[0,0,1,1,1,1,1,1,1,1,1,1,1,1,0,0]
+[0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0]
+[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
+[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
+[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
+[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
+[0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
+[0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
+[0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1]
+[0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1]
+[0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1]
+[0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1]
+[0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1]
+[0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1]
+[0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,0]
+[0,0,0,0,0,0,0,0,0,0,1,1,1,1,0,0]
 
 
 * Additional function to add if I have spare time:
