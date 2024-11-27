@@ -25,11 +25,15 @@ class Grid3D:
     
     # check if the position is valid, return True or False
     def isPosValid(self, cell):
+        positionList = cell.getPlacementPos()
         if isinstance(cell, Cell):
-            if (0<=cell.x<self.gridSize and
-                0<=cell.y<self.gridSize and
-                0<=cell.z<self.gridSize):
-                return True
+            for pos in positionList:
+                if (0<=pos[0]<self.gridSize and
+                    0<=pos[1]<self.gridSize and
+                    0<=pos[2]<self.gridSize):
+                    return True
+                if self.board[pos[2]][pos[1]][pos[0]] is not None:
+                    return False
         return False
     
     # place the cube at the position, return True or False
@@ -119,10 +123,9 @@ class StairCell(Cell):
     def __init__(self, x, y, z, fracLevel=1):
         super().__init__(x, y, z, fracLevel)
         self.resizable = False
-        self.pattern = [[[True, False],
-                        [False, False]],
-                       [[True, True],
-                        [False, False]]]
+        self.pattern = [[[True, False], [False, False]],
+                        [[True, True], [False, False]],
+                        [[True, True], [True, False]]]
 
 # Mainly reference from https://youtu.be/RRBXVu5UE-U?si=FTBWxNPHmmu-KmW6
 class HandGestureDetector:
