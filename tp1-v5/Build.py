@@ -6,8 +6,6 @@ import math
 import cv2
 # import numpy as np
 import mediapipe as mp
-import tkinter as tk
-from tkinter import filedialog
 
 # Take reference from Week7 assignment tetris3D
 class Grid3D:
@@ -16,12 +14,8 @@ class Grid3D:
         self.gridSize = gridSize
         # it will be a cube
         self.board = [[[None for x in range(self.gridSize)]
-                        for y in range(self.gridSize)]
-                        for z in range(self.gridSize)]
-        print(self.board) # for debug
-    
-    def __repr__(self):
-        return f"Grid3D(cellSize={self.cellSize}, gridSize={self.gridSize})"
+                       for y in range(self.gridSize)]
+                       for z in range(self.gridSize)]
     
     # check if the position is valid, return True or False
     def isPosValid(self, cell):
@@ -47,82 +41,19 @@ class Grid3D:
             return self.board[cell.z][cell.y][cell.x]
         return None
         
-'''
-Cell class, frac level I left it for future use
-'''
 class Cell:
-    def __init__(self, x, y, z, fracLevel):
+    def __init__(self,x,y,z,fracLevel):
+        self.cellSize = 10
         self.fracLevel = fracLevel
         #  x,y,z here is position
         self.x = x
         self.y = y
         self.z = z
-        self.size = 1
-        self.fracLevel = fracLevel
-        self.resizable = True
-        self.pattern = [[[True]]] # 1x1x1 cube
-    
-    def __repr__(self):
-        return f"Cell({self.x}, {self.y}, {self.z}, {self.size})"
         
     def fracCell(self):
         self.x = self.x *2
         self.y = self.y *2
         self.z = self.z *2
-        
-    def getPattern(self):
-        return self.pattern
-    
-    def isResizable(self):
-        return self.resizable
-    
-    def resize(self, newSize):
-        if not self.resizable:
-            return False
-        elif 1<= newSize <= 4:
-            self.size = newSize
-            self.pattern = [[[True for _ in range(newSize)] for _ in range(newSize)] for _ in range(newSize)]
-            return True
-        return False
-
-    '''return a list of (x,y,z), get the exact pattern pos of cell, send to board and make it not None (occupied)'''
-    def getPlacementPos(self):
-        posList = []
-        for x in range(self.size):
-            for y in range(self.size):
-                for z in range(self.size):
-                    posList.append((self.x+x, self.y+y, self.z+z))
-        return posList
-    
-'''
-Various types of cells, inherit from Cell class
-'''
-class LShapeCell(Cell):
-    def __init__(self, x, y, z, fracLevel):
-        super().__init__(x, y, z, fracLevel)
-        self.resizable = False
-        self.pattern = [[[True, False], [True, True]]]
-
-class TShapeCell(Cell):
-    def __init__(self, x, y, z, fracLevel):
-        super().__init__(x, y, z, fracLevel)
-        self.resizable = False
-        self.pattern = [[[True, False, False], [True, True, True], [True, False, False]]]
-        
-class LineCell(Cell):
-    def __init__(self, x, y, z, fracLevel):
-        super().__init__(x, y, z, fracLevel)
-        self.resizable = False
-        self.pattern = [[[True, True, True]]]
-
-class StairCell(Cell):
-    def __init__(self, x, y, z, fracLevel=1):
-        super().__init__(x, y, z, fracLevel)
-        self.resizable = False
-        self.pattern = [[[True, False],
-                        [False, False]],
-                       [[True, True],
-                        [False, False]]]
 
 # Mainly reference from https://youtu.be/RRBXVu5UE-U?si=FTBWxNPHmmu-KmW6
 class HandGestureDetector:
@@ -166,9 +97,8 @@ class HandGestureDetector:
                 if abs(midIndexX - indexX) < 50 and abs(midIndexY - indexY) < 50:
                     self.moveInZ = True
                     self.prevZ = currentHandZ
+                    print("hand is closed")
                     cv2.circle(frame,(midIndexX, midIndexY), 10, (0, 255, 0), -1)
-                else:
-                    self.moveInZ = False
 
             self.prevX = currentHandX
             self.prevY = currentHandY
@@ -179,7 +109,6 @@ class HandGestureDetector:
         cv2.imshow('Hand Gesture Counter', frame)
         # something like FPS 帧数
         cv2.waitKey(1)
-        # Make sure the value is between 0 and 1
         if self.prevX is not None and self.prevY is not None:
             if self.prevX > 1:
                 self.prevX = 1
@@ -200,10 +129,12 @@ class HandGestureDetector:
         self.cap.release()
         cv2.destroyAllWindows()
 
-# Reference Sudoku-3D\game3D.py, builder\CMU-15112-\isometric.py by Kui Yang Yang, https://skannai.medium.com/projecting-3d-points-into-a-2d-screen-58db65609f24 and modified it to fit my needs
 class Projection3D:
     def __init__(self):
-        pass
+        self.near = 0.1
+        self.far = 1000.0
+        self.fov = 60
+        self.aspect = 16/9
 
     def basicProj(self, app, x, y, z, rotationY,rotationX):
         '''
@@ -216,8 +147,9 @@ class Projection3D:
         finalY = rotY * math.cos(rotationX) - z * math.sin(rotationX)
         finalZ = rotY * math.sin(rotationX) + z * math.cos(rotationX)
         
-        screenX = app.boardLeft + app.boardWidth/2 + rotX * app.cellSize * app.scale
-        screenY = app.boardTop + app.boardHeight/2 + finalY * app.cellSize * app.scale
+        scale = 1.0 / (finalZ + 5)
+        screenX = app.boardLeft + app.boardWidth/2 + rotX * app.cellSize
+        screenY = app.boardTop + app.boardHeight/2 + finalY * app.cellSize
         
         return (screenX, screenY, finalZ)
 
@@ -276,7 +208,7 @@ def getNextCenters(cell, pt1, pt2, shift=0.1, currFracLevel=None):
     # Return the center point at this level
     return (centerX, centerY, centerZ)
 
-def drawCell(app, cell, Projection3D, color='black', isSubd=False):
+def drawCell(app, cell, Projection3D, color='black', isPreview=False):
     # Original vertices
     pts = [
         (cell.x, cell.y, cell.z),         # 0: front bottom left, 0,0,0
@@ -358,11 +290,10 @@ def drawCell(app, cell, Projection3D, color='black', isSubd=False):
     faces.sort(key=lambda f: sum(projectedPts[i][2] for i in f[0])/4)
 
     # Draw faces with transparency
-    opacity = 30
-    edgeWidth = 1
+    opacity = 15 if isPreview else 50
+    edgeWidth = 2 if isPreview else 1
     baseColor = rgb(100,100,255) if color == 'blue' else rgb(200,200,200)
 
-    # this part from Claude AI
     for faceIndices, colorAdj in faces:
         faceColor = rgb(max(0, baseColor.red + colorAdj),
                        max(0, baseColor.green + colorAdj),
@@ -376,7 +307,6 @@ def drawCell(app, cell, Projection3D, color='black', isSubd=False):
                     border='black', borderWidth=edgeWidth)
 
     # Define vertex to edge connections
-    # Key is the vertex index, value is the edge indices that connect to the vertex
     vertexConnections = {
         0: [0, 3, 4],    # Front bottom left
         1: [0, 1, 5],    # Front bottom right
@@ -388,26 +318,25 @@ def drawCell(app, cell, Projection3D, color='black', isSubd=False):
         7: [10, 11, 7]   # Back top left
     }
 
-    if app.showSubd:
-        # Draw all connections
-        for vertexIdx, edgeIndices in vertexConnections.items():
-            for edgeIdx in edgeIndices:
-                # Draw line from shifted vertex to edge center
-                drawLine(projectedPtsShifted[vertexIdx][0], 
-                        projectedPtsShifted[vertexIdx][1],
-                        projectedEdgeCenters[edgeIdx][0], 
-                        projectedEdgeCenters[edgeIdx][1], 
-                        fill='red')
+    # Draw all connections
+    for vertexIdx, edgeIndices in vertexConnections.items():
+        for edgeIdx in edgeIndices:
+            # Draw line from shifted vertex to edge center
+            drawLine(projectedPtsShifted[vertexIdx][0], 
+                    projectedPtsShifted[vertexIdx][1],
+                    projectedEdgeCenters[edgeIdx][0], 
+                    projectedEdgeCenters[edgeIdx][1], 
+                    fill='red')
             
     # Draw the points last so they're on top
     for pt in projectedEdgeCenters:
         drawCircle(pt[0], pt[1], 2, fill='black')
     
     for pt in projectedPtsShifted:
-        drawCircle(pt[0], pt[1], 2, fill='red')
+        drawCircle(pt[0], pt[1], 3, fill='red')
     
     for pt in projectedFaceCenters:
-        drawCircle(pt[0], pt[1], 2, fill='blue')
+        drawCircle(pt[0], pt[1], 1, fill='blue')
         
 def drawGrid(app):
     drawGridPlane(app, app.projection)
@@ -429,27 +358,14 @@ def drawGrid(app):
     
     # Sort the cubesToDraw by depth
     cubesToDraw.sort(key=lambda x: x[0])
-    for _, cell, isSubd in cubesToDraw:
+    for _, cell, isPreview in cubesToDraw:
         drawCell(app, cell, app.projection)
 
 # use backtracking to check if the cell is alone or not
-def isSubdCell(app):
-    # use the face centers, if two face centers are close, show the ori cell without subdivision, turn the isSubd to False
-    # if the face centers is alone, show the subdivision cell, turn the isSubd to True
+def showOrNot(app):
+    # use the face centers, if two face centers are close, show the ori cell without subdivision, turn the isPreview to False
+    # if the face centers is alone, show the subdivision cell, turn the isPreview to True
     pass
-
-def importImage(app):
-    root = tk.Tk()
-    root.withdraw()
-    try:
-        filePaths = filedialog.askopenfilenames(title='Select Image', 
-                                                filetypes=[('Image Files', '*.jpg *.jpeg *.png *.bmp *.gif *.tiff')])
-        if filePaths:
-            app.image = filePaths[0]
-    except Exception as e:
-        print(f"Error importing image: {e}")
-    finally:
-        root.destroy()
 
 def init(app):
     app.projection = Projection3D()
@@ -466,9 +382,8 @@ def init(app):
     app.currentZ = 0
     app.lastValidX = 0
     app.lastValidY = 0
-    app.gridScale = 1
-    app.gridSize = 5 * app.gridScale
-    app.cellSize = 50
+    app.gridSize = 5
+    app.cellSize = 100
     app.angle = 30
     app.fracLevel = 1
     
@@ -477,7 +392,7 @@ def init(app):
     app.dragging = False
     app.lastMouseX = 0
     app.lastMouseY = 0
-    app.scale = 1
+
     app.cell = Cell(app.currentX, app.currentY, app.currentZ, app.fracLevel)
     app.grid = Grid3D(app.cellSize, app.gridSize)
     
@@ -487,14 +402,8 @@ def init(app):
     app.handCountY = 0
     app.handCountZ = 0
     # show centers
-    app.showSubd = False
-    
-    # import the image
-    app.image = None
-    app.frameImgX = 80
-    app.frameImgSize = 250
-    app.buttonSize = 30
-
+    app.showCenters = False
+            
 def onAppStart(app):
     init(app)
 
@@ -502,9 +411,6 @@ def onMousePress(app, mouseX, mouseY):
     app.dragging = True
     app.lastMouseX = mouseX
     app.lastMouseY = mouseY
-    if app.frameImgX + app.frameImgSize/2 - app.buttonSize/2 < mouseX < app.frameImgX + app.frameImgSize/2 + app.buttonSize/2 \
-    and app.height/2 + app.frameImgSize/2 + app.buttonSize/2 < mouseY < app.height/2 + app.frameImgSize/2 + app.buttonSize*(3/2):
-        importImage(app)
 
 def onMouseDrag(app, mouseX, mouseY):
     if app.dragging:
@@ -524,7 +430,6 @@ def onMouseRelease(app, mouseX, mouseY):
     app.dragging = False
 
 def onKeyPress(app, key):
-    # Cube related functions 
     if key == 'space':
         # Create a Cell object for position checking
         currentCell = Cell(app.currentX, app.currentY, app.currentZ, app.fracLevel)
@@ -539,36 +444,10 @@ def onKeyPress(app, key):
             else:
                 app.currentZ += 1
             print("placed cube at:", app.currentX, app.currentY, app.currentZ)
-            print(app.grid. board)
-    elif key == 'd':
-        if (app.grid.isPosValid(currentCell) and
-            app.grid.getCube(currentCell) is not None):
-            app.grid.board[app.currentZ][app.currentY][app.currentX] = None
-            print("removed cube at:", app.currentX, app.currentY, app.currentZ)
-    elif key == 'q':
-        # app.cellSize = app.cellSize *2
-        pass
-    elif key == 'e':
-        # app.cellSize = app.cellSize //2
-        pass
-
-    # Change the grid size
-    elif key == 'up':
-        if app.gridSize < 32:
-            app.gridSize = app.gridSize *2
-            print(f"gridSize to: {app.gridSize}")
-    elif key == 'down':
-        if app.gridSize > 1:
-            app.gridSize = app.gridSize //2
-            print(f"gridSize to: {app.gridSize}")
-
-    # Reset the game
     elif key == 'r':
         onAppStart(app)
-
-    # Show subdivision
-    elif key == 's':
-        app.showSubd = not app.showSubd
+    elif key == 'c':
+        app.showCenters = not app.showCenters
     elif key == ']':
         if app.fracLevel == 3:
             app.fracLevel = 3
@@ -580,11 +459,8 @@ def onKeyPress(app, key):
             app.fracLevel = 1
         else:
             app.fracLevel -= 1
+            
         print(f"fracLevel to: {app.fracLevel}")  
-    elif key == 'left':
-        app.scale -= 0.1
-    elif key == 'right':
-        app.scale += 0.1
 
 def onStep(app):
     # it will be x & y
@@ -610,15 +486,11 @@ def redrawAll(app):
         drawLabel(f'count: {app.handCountX}, {app.handCountY}', app.width/2, app.height - 20, size = 20)
     else:
         drawLabel('Hand not detected, Move your hand to move the cube', app.width/2, app.height - 20, size = 20)
-    drawLabel('SPACE to place cube, R to reset, C to show subdivision', app.width/2, 60, size=20)
+    drawLabel('Use arrow keys to move, SPACE to place cube, R to reset', 
+             app.width/2, 60, size=20)
     drawGrid(app)
     drawLabel(f'current: {app.currentX}, {app.currentY}, {app.currentZ}', app.width/2, 100, size=20)
     drawLabel(f'fracLevel: {app.fracLevel}, use [ ] to change', app.width/2, 140, size=20)
-    # import the image 
-    if app.image is not None:
-        drawImage(app.image, app.frameImgX, app.height/2-app.frameImgSize/2, width=app.frameImgSize, height=app.frameImgSize)
-    drawRect(app.frameImgX, app.height/2-app.frameImgSize/2, app.frameImgSize, app.frameImgSize, fill=None, border='black')
-    drawImage('import.png', app.frameImgX + app.frameImgSize/2 - app.buttonSize/2, app.height/2 + app.frameImgSize/2 + app.buttonSize, width=app.buttonSize, height=app.buttonSize)
 
 def main():
     runApp(width=1200, height=800)

@@ -2,8 +2,8 @@
 This is the menu page that allows the user to choose between drawing and building
 '''
 from cmu_graphics import *
-# from Draw import *
-# from Build import *
+from Draw import *
+from Build import *
 
 def onAppStart(app):    
     app.subdIcon = 'draw.png'
@@ -27,12 +27,12 @@ def onMousePress(app, mouseX, mouseY):
 def redrawAll(app):
     drawLabel('Menu', app.width/2, 50, size=24)
     
-    # drawRect(app.width/2, app.height/2 - app.buttonHeight, app.buttonWidth, app.buttonHeight, fill=None, border='black', align='center')
-    drawLabel('Draw', app.width/2, app.height/2 - app.buttonHeight, size=24)
+    drawRect(app.width/2, app.height/2 - app.buttonHeight, app.buttonWidth, app.buttonHeight, fill=None, border='black', align='center')
+    drawLabel('Draw', app.width/2, app.height/2 - app.buttonHeight, size=16)
     drawImage(app.drawIcon, app.width/2-app.buttonWidth/2-app.iconSize, app.height/2 - app.buttonHeight, align='center', width=app.iconSize, height=app.iconSize)
     
-    # drawRect(22app.width/2, app.height/2 + app.buttonHeight, app.buttonWidth, app.buttonHeight, fill=None, border='black', align='center')
-    drawLabel('Build', app.width/2, app.height/2 + app.buttonHeight, size=24)
+    drawRect(app.width/2, app.height/2 + app.buttonHeight, app.buttonWidth, app.buttonHeight, fill=None, border='black', align='center')
+    drawLabel('Build', app.width/2, app.height/2 + app.buttonHeight, size=16)
     drawImage(app.subdIcon, app.width/2-app.buttonWidth/2-app.iconSize, app.height/2 + app.buttonHeight, align='center', width=app.iconSize, height=app.iconSize)
     
 def main():

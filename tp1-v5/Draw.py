@@ -10,7 +10,7 @@ class PatternSubdivision:
         self.fractalLevel = 0
         self.pattern = initial_pattern
         self.maxLevel = 3
-    
+        
     def subdivide(self):
         if self.fractalLevel >= self.maxLevel:  # Limit max subdivision level
             self.fractalLevel = self.maxLevel
@@ -29,31 +29,15 @@ class PatternSubdivision:
                 if x % 2 == 0 and y % 2 == 0:
                     newPattern[y][x] = self.pattern[origY][origX]
                 else:
-                    isEdge = x % 2 != 0 or y % 2 != 0 # Checks if either x or y is odd
-                    '''
-                    for example:
-                    (0,0) (0,1) (0,2) (0,3)  # x=0, y=0,1,2,3
-                    (1,0) (1,1) (1,2) (1,3)  # x=1, y=0,1,2,3
-                    (2,0) (2,1) (2,2) (2,3)  # x=2, y=0,1,2,3
-                    (3,0) (3,1) (3,2) (3,3)  # x=3, y=0,1,2,3
-                    
-                    RESULT:
-                    O E O E
-                    E E E E
-                    O E O E
-                    E E E E
-                    '''
+                    isEdge = x % 2 != 0 or y % 2 != 0
                     if isEdge:
-                        # Case 1: For edge positions (where x or y is odd), Calculates average of neighboring values and converts to 0 or 1
                         newPattern[y][x] = int(self.getNeighborAverage(origX, origY))
                     else:
-                        # Case 2: For original positions (where both x and y are even),Directly copies the value from original pattern
                         newPattern[y][x] = self.pattern[origY][origX]
         
         self.pattern = newPattern
         self.fractalLevel += 1
-    
-    # Calculate the average of the 8 neighbors, with some help from ChatGPT.
+        
     def getNeighborAverage(self, x, y):
         count = 0
         total = 0
@@ -200,7 +184,10 @@ def drawSubdivision(app):
         for y in range(len(app.subdivision.pattern)):
             for x in range(len(app.subdivision.pattern)):
                 if app.subdivision.pattern[y][x]:
-                    drawRect(app.margin + x * cell_size, app.margin + y * cell_size, cell_size, cell_size, fill='black')
+                    drawRect(app.margin + x * cell_size, 
+                           app.margin + y * cell_size,
+                           cell_size, cell_size,
+                           fill='black')
 
 def redrawAll(app):
     if app.isShowSubd:
