@@ -1,2 +1,0 @@
-check = 'text'
-print(check)

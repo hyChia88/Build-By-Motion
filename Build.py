@@ -26,31 +26,66 @@ class Grid3D:
     # check if the position is valid, return True or False
     def isPosValid(self, cell):
         positionList = cell.getPlacementPos()
+        print("positionList:", positionList)
         if isinstance(cell, Cell):
             for pos in positionList:
-                if (0<=pos[0]<self.gridSize and
-                    0<=pos[1]<self.gridSize and
-                    0<=pos[2]<self.gridSize):
-                    return True
+                # Check bounds first
+                if not (0 <= pos[0] < self.gridSize and
+                       0 <= pos[1] < self.gridSize and
+                       0 <= pos[2] < self.gridSize):
+                    return False
+                # Then check if position is occupied
                 if self.board[pos[2]][pos[1]][pos[0]] is not None:
                     return False
+            return True
         return False
     
     # place the cube at the position, return True or False
-    def placeCube(self,cell):
+    def placeCell(self,cell):
         if self.isPosValid(cell):
             # the order of x,y,z is different from the order of the board
-            self.board[cell.z][cell.y][cell.x] = cell
+            positionList = cell.getPlacementPos()
+            for pos in positionList:
+                self.board[pos[2]][pos[1]][pos[0]] = cell
             return True
         return False
     
     # get the cube at the position, return the cell or None
-    def getCube(self, cell):
-        if self.isPosValid(cell):
-            # the order of x,y,z is different from the order of the board
-            return self.board[cell.z][cell.y][cell.x]
+    def getCell(self, cell):
+        positionList = cell.getPlacementPos()
+        for pos in positionList:
+            if not (0 <= pos[0] < self.gridSize and 
+                    0 <= pos[1] < self.gridSize and 
+                    0 <= pos[2] < self.gridSize):
+                return None
+            if self.board[pos[2]][pos[1]][pos[0]] is not None:
+                return self.board[pos[2]][pos[1]][pos[0]]
         return None
-        
+
+    def removeCell(self, cell):
+        if 0 <= cell.x < self.gridSize and 0 <= cell.y < self.gridSize and 0 <= cell.z < self.gridSize:
+            cell = self.getCell(cell)
+            if cell is not None:
+                positionList = cell.getPlacementPos()
+                for pos in positionList:
+                    self.board[pos[2]][pos[1]][pos[0]] = None
+                return True
+        return False
+
+class CellFactory:
+    @staticmethod
+    def createCell(cellType, x, y, z, fracLevel=1):
+        cell_types = {
+            'default': Cell,
+            'L': LShapeCell,
+            'T': TShapeCell,
+            'stair': StairCell
+        }
+        CellClass = cell_types.get(cellType)
+        if CellClass:
+            return CellClass(x, y, z, fracLevel)
+        raise ValueError(f"Unknown cell type: {cellType}")
+
 '''
 Cell class, frac level I left it for future use
 '''
@@ -64,7 +99,9 @@ class Cell:
         self.size = 1
         self.fracLevel = fracLevel
         self.resizable = True
-        self.pattern = [[[True]]] # 1x1x1 cube
+        self.pattern = [[[True for _ in range(self.size)] 
+                            for _ in range(self.size)]
+                            for _ in range(self.size)] # 1x1x1 cube
     
     def __repr__(self):
         return f"Cell({self.x}, {self.y}, {self.z}, {self.size})"
@@ -83,19 +120,27 @@ class Cell:
     def resize(self, newSize):
         if not self.resizable:
             return False
-        elif 1<= newSize <= 4:
+        elif 1 <= newSize <= 3:
             self.size = newSize
-            self.pattern = [[[True for _ in range(newSize)] for _ in range(newSize)] for _ in range(newSize)]
+            self.pattern = [[[True for _ in range(self.size)] 
+                            for _ in range(self.size)]
+                            for _ in range(self.size)]
             return True
         return False
 
     '''return a list of (x,y,z), get the exact pattern pos of cell, send to board and make it not None (occupied)'''
     def getPlacementPos(self):
         posList = []
-        for x in range(self.size):
-            for y in range(self.size):
-                for z in range(self.size):
-                    posList.append((self.x+x, self.y+y, self.z+z))
+        # get the exact pattern pos of cell, send to board and make it not None (occupied)
+        pattern = self.getPattern()
+        print("pattern:", pattern) # for debug
+        for x in range(len(pattern)):
+            for y in range(len(pattern[x])):
+                for z in range(len(pattern[x][y])):
+                    if pattern[x][y][z] is True:
+                        pos = (self.x+x, self.y+y, self.z+z)
+                        print("pos:", pos) # for debug
+                        posList.append(pos)
         return posList
     
 '''
@@ -105,7 +150,7 @@ class LShapeCell(Cell):
     def __init__(self, x, y, z, fracLevel):
         super().__init__(x, y, z, fracLevel)
         self.resizable = False
-        self.pattern = [[[True, False], [True, True]]]
+        self.pattern = [[[True, False], [True, True]]] # Use False to represent None, so that at getPlacementPos, it will be ignored
 
 class TShapeCell(Cell):
     def __init__(self, x, y, z, fracLevel):
@@ -123,9 +168,9 @@ class StairCell(Cell):
     def __init__(self, x, y, z, fracLevel=1):
         super().__init__(x, y, z, fracLevel)
         self.resizable = False
-        self.pattern = [[[True, False], [False, False]],
+        self.pattern = [[[True, True], [True, False]],
                         [[True, True], [False, False]],
-                        [[True, True], [True, False]]]
+                        [[True, False], [False, False]]]
 
 # Mainly reference from https://youtu.be/RRBXVu5UE-U?si=FTBWxNPHmmu-KmW6
 class HandGestureDetector:
@@ -280,137 +325,143 @@ def getNextCenters(cell, pt1, pt2, shift=0.1, currFracLevel=None):
     return (centerX, centerY, centerZ)
 
 def drawCell(app, cell, Projection3D, color='black', isSubd=False):
-    # Original vertices
-    pts = [
-        (cell.x, cell.y, cell.z),         # 0: front bottom left, 0,0,0
-        (cell.x+1, cell.y, cell.z),       # 1: front bottom right, 1,0,0
-        (cell.x+1, cell.y+1, cell.z),     # 2: back bottom right, 1,1,0
-        (cell.x, cell.y+1, cell.z),       # 3: back bottom left, 0,1,0
-        (cell.x, cell.y, cell.z+1),       # 4: front top left, 0,0,1
-        (cell.x+1, cell.y, cell.z+1),     # 5: front top right, 1,0,1
-        (cell.x+1, cell.y+1, cell.z+1),   # 6: back top right, 1,1,1
-        (cell.x, cell.y+1, cell.z+1)      # 7: back top left, 0,1,1
-    ]
+    pattern = cell.getPattern()
     
-    # Calculate all edge centers
-    shift = 0.1
-    edgeCenters = [
-        # Bottom face edges
-        getNextCenters(cell, pts[0], pts[1], shift, app.fracLevel),  # Front edge
-        getNextCenters(cell, pts[1], pts[2], shift, app.fracLevel),  # Right edge
-        getNextCenters(cell, pts[2], pts[3], shift, app.fracLevel),  # Back edge
-        getNextCenters(cell, pts[3], pts[0], shift, app.fracLevel),  # Left edge
-        
-        # Vertical edges
-        getNextCenters(cell, pts[0], pts[4], shift, app.fracLevel),  # Front-left
-        getNextCenters(cell, pts[1], pts[5], shift, app.fracLevel),  # Front-right
-        getNextCenters(cell, pts[2], pts[6], shift, app.fracLevel),  # Back-right
-        getNextCenters(cell, pts[3], pts[7], shift, app.fracLevel),  # Back-left
-        
-        # Top face edges
-        getNextCenters(cell, pts[4], pts[5], shift, app.fracLevel),  # Front edge
-        getNextCenters(cell, pts[5], pts[6], shift, app.fracLevel),  # Right edge
-        getNextCenters(cell, pts[6], pts[7], shift, app.fracLevel),  # Back edge
-        getNextCenters(cell, pts[7], pts[4], shift, app.fracLevel)   # Left edge
-    ]
-    
-    # Shifted vertices for subdivision
-    s = 0  # shift amount
-    ptsShifted = [
-        (cell.x+s, cell.y+s, cell.z+s),         # 0
-        (cell.x+1-s, cell.y+s, cell.z+s),       # 1
-        (cell.x+1-s, cell.y+1-s, cell.z+s),     # 2
-        (cell.x+s, cell.y+1-s, cell.z+s),       # 3
-        (cell.x+s, cell.y+s, cell.z+1-s),       # 4
-        (cell.x+1-s, cell.y+s, cell.z+1-s),     # 5
-        (cell.x+1-s, cell.y+1-s, cell.z+1-s),   # 6
-        (cell.x+s, cell.y+1-s, cell.z+1-s)      # 7
-    ]
-    
-    # Face centers
-    faceCenters = {
-        'front': (cell.x + 0.5, cell.y, cell.z + 0.5),
-        'back': (cell.x + 0.5, cell.y + 1, cell.z + 0.5),
-        'left': (cell.x, cell.y + 0.5, cell.z + 0.5),
-        'right': (cell.x + 1, cell.y + 0.5, cell.z + 0.5),
-        'top': (cell.x + 0.5, cell.y + 0.5, cell.z + 1),
-        'bottom': (cell.x + 0.5, cell.y + 0.5, cell.z)
-    }
-    
-    # Project all points
-    projectedPts = [Projection3D.basicProj(app, px, py, pz, app.rotationY, app.rotationX) 
-                   for px, py, pz in pts]
-    projectedPtsShifted = [Projection3D.basicProj(app, px, py, pz, app.rotationY, app.rotationX) 
-                          for px, py, pz in ptsShifted]
-    projectedEdgeCenters = [Projection3D.basicProj(app, px, py, pz, app.rotationY, app.rotationX) 
-                           for px, py, pz in edgeCenters]
-    projectedFaceCenters = [Projection3D.basicProj(app, px, py, pz, app.rotationY, app.rotationX) 
-                           for px, py, pz in faceCenters.values()]
-    
-    # Draw faces first
-    faces = [
-        ([0,1,5,4], 0),      # Front
-        ([1,2,6,5], -20),    # Right
-        ([2,3,7,6], -40),    # Back
-        ([3,0,4,7], -20),    # Left
-        ([4,5,6,7], -10),    # Top
-        ([0,1,2,3], -30),    # Bottom
-    ]
-    
-    # Sort faces by depth
-    faces.sort(key=lambda f: sum(projectedPts[i][2] for i in f[0])/4)
+    for dz in range(len(pattern)):
+        for dy in range(len(pattern[dz])):
+            for dx in range(len(pattern[dz][dy])):
+                if pattern[dz][dy][dx] is True:
+                    baseX,baseY,baseZ = (cell.x+dx, cell.y+dy, cell.z+dz)
+                    pts = [
+                            (baseX, baseY, baseZ),         # 0: front bottom left, 0,0,0
+                            (baseX+1, baseY, baseZ),       # 1: front bottom right, 1,0,0
+                            (baseX+1, baseY+1, baseZ),     # 2: back bottom right, 1,1,0
+                            (baseX, baseY+1, baseZ),       # 3: back bottom left, 0,1,0
+                            (baseX, baseY, baseZ+1),       # 4: front top left, 0,0,1
+                            (baseX+1, baseY, baseZ+1),     # 5: front top right, 1,0,1
+                            (baseX+1, baseY+1, baseZ+1),   # 6: back top right, 1,1,1
+                            (baseX, baseY+1, baseZ+1)      # 7: back top left, 0,1,1
+                        ]
+                                
+                    # Calculate all edge centers
+                    SHIFT = 0.1
+                    edgeCenters = [
+                        # Bottom face edges
+                        getNextCenters(cell, pts[0], pts[1], SHIFT, app.fracLevel),  # Front edge
+                        getNextCenters(cell, pts[1], pts[2], SHIFT, app.fracLevel),  # Right edge
+                        getNextCenters(cell, pts[2], pts[3], SHIFT, app.fracLevel),  # Back edge
+                        getNextCenters(cell, pts[3], pts[0], SHIFT, app.fracLevel),  # Left edge
+                        
+                        # Vertical edges
+                        getNextCenters(cell, pts[0], pts[4], SHIFT, app.fracLevel),  # Front-left
+                        getNextCenters(cell, pts[1], pts[5], SHIFT, app.fracLevel),  # Front-right
+                        getNextCenters(cell, pts[2], pts[6], SHIFT, app.fracLevel),  # Back-right
+                        getNextCenters(cell, pts[3], pts[7], SHIFT, app.fracLevel),  # Back-left
+                        
+                        # Top face edges
+                        getNextCenters(cell, pts[4], pts[5], SHIFT, app.fracLevel),  # Front edge
+                        getNextCenters(cell, pts[5], pts[6], SHIFT, app.fracLevel),  # Right edge
+                        getNextCenters(cell, pts[6], pts[7], SHIFT, app.fracLevel),  # Back edge
+                        getNextCenters(cell, pts[7], pts[4], SHIFT, app.fracLevel)   # Left edge
+                    ]
+                    
+                    # Shifted vertices for subdivision
+                    s = 0  # shift amount
+                    ptsShifted = [
+                        (cell.x+s, cell.y+s, cell.z+s),         # 0
+                        (cell.x+1-s, cell.y+s, cell.z+s),       # 1
+                        (cell.x+1-s, cell.y+1-s, cell.z+s),     # 2
+                        (cell.x+s, cell.y+1-s, cell.z+s),       # 3
+                        (cell.x+s, cell.y+s, cell.z+1-s),       # 4
+                        (cell.x+1-s, cell.y+s, cell.z+1-s),     # 5
+                        (cell.x+1-s, cell.y+1-s, cell.z+1-s),   # 6
+                        (cell.x+s, cell.y+1-s, cell.z+1-s)      # 7
+                    ]
+                    
+                    # Face centers
+                    faceCenters = {
+                        'front': (cell.x + 0.5, cell.y, cell.z + 0.5),
+                        'back': (cell.x + 0.5, cell.y + 1, cell.z + 0.5),
+                        'left': (cell.x, cell.y + 0.5, cell.z + 0.5),
+                        'right': (cell.x + 1, cell.y + 0.5, cell.z + 0.5),
+                        'top': (cell.x + 0.5, cell.y + 0.5, cell.z + 1),
+                        'bottom': (cell.x + 0.5, cell.y + 0.5, cell.z)
+                    }
+                    
+                    # Project all points
+                    projectedPts = [Projection3D.basicProj(app, px, py, pz, app.rotationY, app.rotationX) 
+                                for px, py, pz in pts]
+                    projectedPtsShifted = [Projection3D.basicProj(app, px, py, pz, app.rotationY, app.rotationX) 
+                                        for px, py, pz in ptsShifted]
+                    projectedEdgeCenters = [Projection3D.basicProj(app, px, py, pz, app.rotationY, app.rotationX) 
+                                        for px, py, pz in edgeCenters]
+                    projectedFaceCenters = [Projection3D.basicProj(app, px, py, pz, app.rotationY, app.rotationX) 
+                                        for px, py, pz in faceCenters.values()]
+                    
+                    # Draw faces first
+                    faces = [
+                        ([0,1,5,4], 0),      # Front
+                        ([1,2,6,5], -20),    # Right
+                        ([2,3,7,6], -40),    # Back
+                        ([3,0,4,7], -20),    # Left
+                        ([4,5,6,7], -10),    # Top
+                        ([0,1,2,3], -30),    # Bottom
+                    ]
+                    
+                    # Sort faces by depth
+                    faces.sort(key=lambda f: sum(projectedPts[i][2] for i in f[0])/4)
 
-    # Draw faces with transparency
-    opacity = 30
-    edgeWidth = 1
-    baseColor = rgb(100,100,255) if color == 'blue' else rgb(200,200,200)
+                    # Draw faces with transparency
+                    opacity = 30
+                    edgeWidth = 1
+                    baseColor = rgb(100,100,255) if color == 'blue' else rgb(200,200,200)
 
-    # this part from Claude AI
-    for faceIndices, colorAdj in faces:
-        faceColor = rgb(max(0, baseColor.red + colorAdj),
-                       max(0, baseColor.green + colorAdj),
-                       max(0, baseColor.blue + colorAdj))
-        
-        facePoints = []
-        for idx in faceIndices:
-            facePoints.extend([projectedPts[idx][0], projectedPts[idx][1]])
-        
-        drawPolygon(*facePoints, fill=faceColor, opacity=opacity,
-                    border='black', borderWidth=edgeWidth)
+                    # this part from Claude AI
+                    for faceIndices, colorAdj in faces:
+                        faceColor = rgb(max(0, baseColor.red + colorAdj),
+                                    max(0, baseColor.green + colorAdj),
+                                    max(0, baseColor.blue + colorAdj))
+                        
+                        facePoints = []
+                        for idx in faceIndices:
+                            facePoints.extend([projectedPts[idx][0], projectedPts[idx][1]])
+                        
+                        drawPolygon(*facePoints, fill=faceColor, opacity=opacity,
+                                    border='black', borderWidth=edgeWidth)
 
-    # Define vertex to edge connections
-    # Key is the vertex index, value is the edge indices that connect to the vertex
-    vertexConnections = {
-        0: [0, 3, 4],    # Front bottom left
-        1: [0, 1, 5],    # Front bottom right
-        2: [1, 2, 6],    # Back bottom right
-        3: [2, 3, 7],    # Back bottom left
-        4: [8, 11, 4],   # Front top left
-        5: [8, 9, 5],    # Front top right
-        6: [9, 10, 6],   # Back top right
-        7: [10, 11, 7]   # Back top left
-    }
+                    # Define vertex to edge connections
+                    # Key is the vertex index, value is the edge indices that connect to the vertex
+                    vertexConnections = {
+                        0: [0, 3, 4],    # Front bottom left
+                        1: [0, 1, 5],    # Front bottom right
+                        2: [1, 2, 6],    # Back bottom right
+                        3: [2, 3, 7],    # Back bottom left
+                        4: [8, 11, 4],   # Front top left
+                        5: [8, 9, 5],    # Front top right
+                        6: [9, 10, 6],   # Back top right
+                        7: [10, 11, 7]   # Back top left
+                    }
 
-    if app.showSubd:
-        # Draw all connections
-        for vertexIdx, edgeIndices in vertexConnections.items():
-            for edgeIdx in edgeIndices:
-                # Draw line from shifted vertex to edge center
-                drawLine(projectedPtsShifted[vertexIdx][0], 
-                        projectedPtsShifted[vertexIdx][1],
-                        projectedEdgeCenters[edgeIdx][0], 
-                        projectedEdgeCenters[edgeIdx][1], 
-                        fill='red')
-            
-    # Draw the points last so they're on top
-    for pt in projectedEdgeCenters:
-        drawCircle(pt[0], pt[1], 2, fill='black')
-    
-    for pt in projectedPtsShifted:
-        drawCircle(pt[0], pt[1], 2, fill='red')
-    
-    for pt in projectedFaceCenters:
-        drawCircle(pt[0], pt[1], 2, fill='blue')
+                    if app.showSubd:
+                        # Draw all connections
+                        for vertexIdx, edgeIndices in vertexConnections.items():
+                            for edgeIdx in edgeIndices:
+                                # Draw line from shifted vertex to edge center
+                                drawLine(projectedPtsShifted[vertexIdx][0], 
+                                        projectedPtsShifted[vertexIdx][1],
+                                        projectedEdgeCenters[edgeIdx][0], 
+                                        projectedEdgeCenters[edgeIdx][1], 
+                                        fill='red')
+                            
+                    # Draw the points last so they're on top
+                    for pt in projectedEdgeCenters:
+                        drawCircle(pt[0], pt[1], 2, fill='black')
+                    
+                    for pt in projectedPtsShifted:
+                        drawCircle(pt[0], pt[1], 2, fill='red')
+                    
+                    for pt in projectedFaceCenters:
+                        drawCircle(pt[0], pt[1], 2, fill='blue')
         
 def drawGrid(app):
     drawGridPlane(app, app.projection)
@@ -419,26 +470,37 @@ def drawGrid(app):
     for z in range(app.grid.gridSize):
         for y in range(app.grid.gridSize):
             for x in range(app.grid.gridSize):
-                cell = Cell(x,y,z, app.fracLevel)
-                if app.grid.getCube(cell) is not None:
+                existCell = app.grid.board[z][y][x]
+                if existCell is not None:
                     # draw the cell at the center of the cube
                     depth = app.projection.basicProj(app, x+0.5, y+0.5, z+0.5, app.rotationY, app.rotationX)[2]
-                    cubesToDraw.append((depth, cell, False))
+                    cubesToDraw.append((depth, existCell, False))
 
+    app.cell.x = app.currentX
+    app.cell.y = app.currentY
+    app.cell.z = app.currentZ
+    
     # draw the current cell, just for init & indication
-    currCell = Cell(app.currentX, app.currentY, app.currentZ, app.fracLevel)
     depth = app.projection.basicProj(app, app.currentX+0.5, app.currentY+0.5, app.currentZ+0.5, app.rotationY, app.rotationX)[2]
-    cubesToDraw.append((depth, currCell, True))
+    cubesToDraw.append((depth, app.cell, True))
     
     # Sort the cubesToDraw by depth
     cubesToDraw.sort(key=lambda x: x[0])
-    for _, cell, isSubd in cubesToDraw:
-        drawCell(app, cell, app.projection)
+    for depth, cell, isSubd in cubesToDraw:
+        # color the current cell blue
+        color = 'blue' if cell == app.cell else 'black'
+        drawCell(app, cell, app.projection, color, isSubd)
 
 # use backtracking to check if the cell is alone or not
 def isSubdCell(app):
     # use the face centers, if two face centers are close, show the ori cell without subdivision, turn the isSubd to False
     # if the face centers is alone, show the subdivision cell, turn the isSubd to True
+    # TODO:
+    pass
+
+def snapCells(app):
+    # if 2 cells are adjacent (like face center is side to side), turn the cell into a bigger one, draw less faces
+    # TODO:
     pass
 
 def importImage(app):
@@ -470,8 +532,9 @@ def init(app):
     app.lastValidX = 0
     app.lastValidY = 0
     app.gridScale = 1
-    app.gridSize = 5 * app.gridScale
+    app.gridSize = 5
     app.cellSize = 50
+    app.newSize = 1
     app.angle = 30
     app.fracLevel = 1
     
@@ -481,6 +544,10 @@ def init(app):
     app.lastMouseX = 0
     app.lastMouseY = 0
     app.scale = 1
+    
+    # init the cell
+    app.cellType = 'default'
+    app.cellFactory = CellFactory()
     app.cell = Cell(app.currentX, app.currentY, app.currentZ, app.fracLevel)
     app.grid = Grid3D(app.cellSize, app.gridSize)
     
@@ -498,15 +565,21 @@ def init(app):
     app.frameImgSize = 250
     app.buttonSize = 30
 
+    # check if the current cell is valid
+    app.isPosValid = app.grid.isPosValid(app.cell)
+
 def onAppStart(app):
     init(app)
+    
+def onAppStop(app):
+    app.detector.cleanup()
 
 def onMousePress(app, mouseX, mouseY):
     app.dragging = True
     app.lastMouseX = mouseX
     app.lastMouseY = mouseY
-    if app.frameImgX + app.frameImgSize/2 - app.buttonSize/2 < mouseX < app.frameImgX + app.frameImgSize/2 + app.buttonSize/2 \
-    and app.height/2 + app.frameImgSize/2 + app.buttonSize/2 < mouseY < app.height/2 + app.frameImgSize/2 + app.buttonSize*(3/2):
+    if (app.frameImgX + app.frameImgSize/2 - app.buttonSize/2 < mouseX < app.frameImgX + app.frameImgSize/2 + app.buttonSize/2 and
+        app.height/2 + app.frameImgSize/2 + app.buttonSize/2 < mouseY < app.height/2 + app.frameImgSize/2 + app.buttonSize*(3/2)):
         importImage(app)
 
 def onMouseDrag(app, mouseX, mouseY):
@@ -527,44 +600,60 @@ def onMouseRelease(app, mouseX, mouseY):
     app.dragging = False
 
 def onKeyPress(app, key):
-    # Cube related functions 
+    # Cube related functions
     if key == 'space':
-        # Create a Cell object for position checking
-        currentCell = Cell(app.currentX, app.currentY, app.currentZ, app.fracLevel)
-        # Only place cube if position is empty and valid
-        if (app.grid.isPosValid(currentCell) and
-            app.grid.getCube(currentCell) is None):
-            # place the cube
-            app.grid.placeCube(currentCell)
-            # Wrap around to bottom when reaching top
-            if app.currentZ >= app.grid.gridSize - 1:
-                app.currentZ = 0
-            else:
-                app.currentZ += 1
-            print("placed cube at:", app.currentX, app.currentY, app.currentZ)
-            print(app.grid. board)
+        # Debug prints to see what's happening
+        print("Current app.cell:", app.cell)
+        print("Cell pattern:", app.cell.pattern)
+        print("Cell positions:", app.cell.getPlacementPos())
+        
+        if (app.grid.isPosValid(app.cell) and
+            app.grid.getCell(app.cell) is None):
+            placeable = app.grid.placeCell(app.cell)
+            print("Can place, Placed cell at:", app.cell.x, app.cell.y, app.cell.z) 
+            if placeable:
+                if app.currentZ >= app.gridSize - 1:
+                    app.currentZ = 0
+                else:
+                    app.currentZ += 1
+                app.cell = app.cellFactory.createCell(app.cellType, app.currentX, app.currentY, app.currentZ, app.fracLevel)
+        
+        # Pretty print the board layer by layer
+        print("\nUpdated board:")
+        for z in range(len(app.grid.board)):
+            print(f"Layer: {z}:")
+            for y in range(len(app.grid.board[z])):
+                row = [cell is not None for cell in app.grid.board[z][y]]
+                print(''.join(['X' if cell else '.' for cell in row]))
+            
     elif key == 'd':
-        if (app.grid.isPosValid(currentCell) and
-            app.grid.getCube(currentCell) is not None):
-            app.grid.board[app.currentZ][app.currentY][app.currentX] = None
+        if isinstance(app.cell, Cell) and app.cell.resizable and app.newSize > 1:
+            app.newSize -= 1
             print("removed cube at:", app.currentX, app.currentY, app.currentZ)
+
     elif key == 'q':
-        # app.cellSize = app.cellSize *2
-        pass
+        if isinstance(app.cell, Cell) and app.cell.resizable and app.newSize < 3:
+            app.newSize += 1
+            app.cell.resize(app.newSize)
+
     elif key == 'e':
-        # app.cellSize = app.cellSize //2
-        pass
+        if isinstance(app.cell, Cell) and app.cell.resizable and app.newSize > 1:
+            app.newSize -= 1
+            app.cell.resize(app.newSize)
 
     # Change the grid size
     elif key == 'up':
         if app.gridSize < 32:
             app.gridSize = app.gridSize *2
-            print(f"gridSize to: {app.gridSize}")
+            app.grid = Grid3D(app.cellSize, app.gridSize)
+            print(f"gridSize to: {app.gridSize}") 
+
     elif key == 'down':
         if app.gridSize > 1:
             app.gridSize = app.gridSize //2
+            app.grid = Grid3D(app.cellSize, app.gridSize)
             print(f"gridSize to: {app.gridSize}")
-
+            
     # Reset the game
     elif key == 'r':
         onAppStart(app)
@@ -588,6 +677,15 @@ def onKeyPress(app, key):
         app.scale -= 0.1
     elif key == 'right':
         app.scale += 0.1
+        
+    # Change the cell type
+    if key in ['1', '2', '3', '4']:
+        if key == '1': app.cellType = 'default'
+        elif key == '2': app.cellType = 'L'
+        elif key == '3': app.cellType = 'T'
+        elif key == '4': app.cellType = 'stair'
+        # Create new cell with updated type
+        app.cell = app.cellFactory.createCell(app.cellType, app.currentX, app.currentY, app.currentZ, app.fracLevel)
 
 def onStep(app):
     # it will be x & y
@@ -608,15 +706,21 @@ def onStep(app):
         app.lastValidY = mappedY
 
 def redrawAll(app):
+    # title
     drawLabel('Build Game',app.width/2, 20, size=24)
+    
+    # Main drawing
+    drawGrid(app)
+    
+    # Instruction
     if app.handCountX or app.handCountY:
         drawLabel(f'count: {app.handCountX}, {app.handCountY}', app.width/2, app.height - 20, size = 20)
     else:
-        drawLabel('Hand not detected, Move your hand to move the cube', app.width/2, app.height - 20, size = 20)
-    drawLabel('SPACE to place cube, R to reset, C to show subdivision', app.width/2, 60, size=20)
-    drawGrid(app)
+        drawLabel('Hand not detected, Move your hand to move the cube', app.width/2, app.height - 20, size = 20)    
+    drawLabel('SPACE to place cube, R to reset, S to show subdivision', app.width/2, 60, size=20)
     drawLabel(f'current: {app.currentX}, {app.currentY}, {app.currentZ}', app.width/2, 100, size=20)
     drawLabel(f'fracLevel: {app.fracLevel}, use [ ] to change', app.width/2, 140, size=20)
+    
     # import the image 
     if app.image is not None:
         drawImage(app.image, app.frameImgX, app.height/2-app.frameImgSize/2, width=app.frameImgSize, height=app.frameImgSize)
