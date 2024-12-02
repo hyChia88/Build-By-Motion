@@ -1,6 +1,8 @@
 '''
 This is the building page that allows the user to build on a grid with blocks (cells)
 '''
+from re import L
+import numpy as np
 from cmu_graphics import *
 import math
 import cv2
@@ -8,6 +10,8 @@ import cv2
 import mediapipe as mp
 import tkinter as tk
 from tkinter import filedialog
+
+from getFacePts import clean_mesh
 
 # Take reference from Week7 assignment tetris3D
 class Grid3D:
@@ -26,7 +30,6 @@ class Grid3D:
     # check if the position is valid, return True or False
     def isPosValid(self, cell):
         positionList = cell.getPlacementPos()
-        print("positionList:", positionList)
         if isinstance(cell, Cell):
             for pos in positionList:
                 # Check bounds first
@@ -133,13 +136,11 @@ class Cell:
         posList = []
         # get the exact pattern pos of cell, send to board and make it not None (occupied)
         pattern = self.getPattern()
-        print("pattern:", pattern) # for debug
         for x in range(len(pattern)):
             for y in range(len(pattern[x])):
                 for z in range(len(pattern[x][y])):
                     if pattern[x][y][z] is True:
                         pos = (self.x+x, self.y+y, self.z+z)
-                        print("pos:", pos) # for debug
                         posList.append(pos)
         return posList
     
@@ -269,202 +270,441 @@ class Projection3D:
         
         return (screenX, screenY, finalZ)
 
+class Draw:
 # Main method:
-def drawGridPlane(app, Projection3D):
-    gridColor = rgb(200,200,200) #grey
-    
-    centerPt = Projection3D.basicProj(app, 0, 0, 0, app.rotationY, app.rotationX)
-    endOfX = Projection3D.basicProj(app, app.gridSize, 0, 0, app.rotationY, app.rotationX)
-    endOfY = Projection3D.basicProj(app, 0, app.gridSize, 0, app.rotationY, app.rotationX)
-    endOfZ = Projection3D.basicProj(app, 0, 0, app.gridSize, app.rotationY, app.rotationX)
-    
-    drawLine(centerPt[0], centerPt[1], endOfX[0], endOfX[1], fill=gridColor, dashes=True)
-    drawLine(centerPt[0], centerPt[1], endOfY[0], endOfY[1], fill=gridColor, dashes=True)
-    drawLine(centerPt[0], centerPt[1], endOfZ[0], endOfZ[1], fill=gridColor, dashes=True)
-    
-    drawLabel(f'x', endOfX[0], endOfX[1], size=20)
-    drawLabel(f'y', endOfY[0], endOfY[1], size=20)
-    drawLabel(f'z', endOfZ[0], endOfZ[1], size=20)
-    
-    # Draw grid boundaries along X axis
-    for i in range(app.gridSize + 1):
-        startPt = Projection3D.basicProj(app, i, 0, 0, app.rotationY, app.rotationX)
-        endPt = Projection3D.basicProj(app, i, app.gridSize, 0, app.rotationY, app.rotationX)
-        drawLine(startPt[0], startPt[1], endPt[0], endPt[1], fill=gridColor, dashes=True)
-
-    # Draw grid boundaries along Y axis
-    for i in range(app.gridSize + 1):
-        startPt = Projection3D.basicProj(app, 0, i, 0, app.rotationY, app.rotationX)
-        endPt = Projection3D.basicProj(app, app.gridSize, i, 0, app.rotationY, app.rotationX)
-        drawLine(startPt[0], startPt[1], endPt[0], endPt[1], fill=gridColor, dashes=True)
-
-# Using the midpoint and direction vector to get the next center point. a 2 level recursion to achieve subdivision, not complete yet. Take reference from chatGpt, and method https://en.wikipedia.org/wiki/Catmull%E2%80%93Clark_subdivision_surface, and modified & rewrite it by myself.
-def getNextCenters(cell, pt1, pt2, shift=0.1, currFracLevel=None):
-    if currFracLevel is None:
-        currFracLevel = cell.fracLevel
+    def drawGridPlane(self, app, Projection3D):
+        gridColor = rgb(200,200,200) #grey
         
-    # Calculate the midpoint & direction vector between two vertices
-    centerX = (pt1[0] + pt2[0])/2
-    centerY = (pt1[1] + pt2[1])/2
-    centerZ = (pt1[2] + pt2[2])/2
-    # Shift the center point outward from cube center
-    centerX += shift * (centerX - (cell.x + 0.5))
-    centerY += shift * (centerY - (cell.y + 0.5))
-    centerZ += shift * (centerZ - (cell.z + 0.5))
-    
-    # Base case: if fracLevel == 1, return the center point
-    if currFracLevel == 1:
-        return (centerX, centerY, centerZ)
-    
-    # Recursive case: subdivide further
-    # Get centers between pt1->center and center->pt2
-    center1 = getNextCenters(cell, pt1, (centerX, centerY, centerZ), shift, currFracLevel-1)
-    center2 = getNextCenters(cell, (centerX, centerY, centerZ), pt2, shift, currFracLevel-1)
-    
-    # Return the center point at this level
-    return (centerX, centerY, centerZ)
-
-def drawCell(app, cell, Projection3D, color='black', isSubd=False):
-    pattern = cell.getPattern()
-    
-    for dz in range(len(pattern)):
-        for dy in range(len(pattern[dz])):
-            for dx in range(len(pattern[dz][dy])):
-                if pattern[dz][dy][dx] is True:
-                    baseX,baseY,baseZ = (cell.x+dx, cell.y+dy, cell.z+dz)
-                    pts = [
-                            (baseX, baseY, baseZ),         # 0: front bottom left, 0,0,0
-                            (baseX+1, baseY, baseZ),       # 1: front bottom right, 1,0,0
-                            (baseX+1, baseY+1, baseZ),     # 2: back bottom right, 1,1,0
-                            (baseX, baseY+1, baseZ),       # 3: back bottom left, 0,1,0
-                            (baseX, baseY, baseZ+1),       # 4: front top left, 0,0,1
-                            (baseX+1, baseY, baseZ+1),     # 5: front top right, 1,0,1
-                            (baseX+1, baseY+1, baseZ+1),   # 6: back top right, 1,1,1
-                            (baseX, baseY+1, baseZ+1)      # 7: back top left, 0,1,1
-                        ]
-                                
-                    # Calculate all edge centers
-                    SHIFT = 0.1
-                    edgeCenters = [
-                        # Bottom face edges
-                        getNextCenters(cell, pts[0], pts[1], SHIFT, app.fracLevel),  # Front edge
-                        getNextCenters(cell, pts[1], pts[2], SHIFT, app.fracLevel),  # Right edge
-                        getNextCenters(cell, pts[2], pts[3], SHIFT, app.fracLevel),  # Back edge
-                        getNextCenters(cell, pts[3], pts[0], SHIFT, app.fracLevel),  # Left edge
-                        
-                        # Vertical edges
-                        getNextCenters(cell, pts[0], pts[4], SHIFT, app.fracLevel),  # Front-left
-                        getNextCenters(cell, pts[1], pts[5], SHIFT, app.fracLevel),  # Front-right
-                        getNextCenters(cell, pts[2], pts[6], SHIFT, app.fracLevel),  # Back-right
-                        getNextCenters(cell, pts[3], pts[7], SHIFT, app.fracLevel),  # Back-left
-                        
-                        # Top face edges
-                        getNextCenters(cell, pts[4], pts[5], SHIFT, app.fracLevel),  # Front edge
-                        getNextCenters(cell, pts[5], pts[6], SHIFT, app.fracLevel),  # Right edge
-                        getNextCenters(cell, pts[6], pts[7], SHIFT, app.fracLevel),  # Back edge
-                        getNextCenters(cell, pts[7], pts[4], SHIFT, app.fracLevel)   # Left edge
-                    ]
-                    
-                    # Shifted vertices for subdivision
-                    s = 0  # shift amount
-                    ptsShifted = [
-                        (cell.x+s, cell.y+s, cell.z+s),         # 0
-                        (cell.x+1-s, cell.y+s, cell.z+s),       # 1
-                        (cell.x+1-s, cell.y+1-s, cell.z+s),     # 2
-                        (cell.x+s, cell.y+1-s, cell.z+s),       # 3
-                        (cell.x+s, cell.y+s, cell.z+1-s),       # 4
-                        (cell.x+1-s, cell.y+s, cell.z+1-s),     # 5
-                        (cell.x+1-s, cell.y+1-s, cell.z+1-s),   # 6
-                        (cell.x+s, cell.y+1-s, cell.z+1-s)      # 7
-                    ]
-                    
-                    # Face centers
-                    faceCenters = {
-                        'front': (cell.x + 0.5, cell.y, cell.z + 0.5),
-                        'back': (cell.x + 0.5, cell.y + 1, cell.z + 0.5),
-                        'left': (cell.x, cell.y + 0.5, cell.z + 0.5),
-                        'right': (cell.x + 1, cell.y + 0.5, cell.z + 0.5),
-                        'top': (cell.x + 0.5, cell.y + 0.5, cell.z + 1),
-                        'bottom': (cell.x + 0.5, cell.y + 0.5, cell.z)
-                    }
-                    
-                    # Project all points
-                    projectedPts = [Projection3D.basicProj(app, px, py, pz, app.rotationY, app.rotationX) 
-                                for px, py, pz in pts]
-                    projectedPtsShifted = [Projection3D.basicProj(app, px, py, pz, app.rotationY, app.rotationX) 
-                                        for px, py, pz in ptsShifted]
-                    projectedEdgeCenters = [Projection3D.basicProj(app, px, py, pz, app.rotationY, app.rotationX) 
-                                        for px, py, pz in edgeCenters]
-                    projectedFaceCenters = [Projection3D.basicProj(app, px, py, pz, app.rotationY, app.rotationX) 
-                                        for px, py, pz in faceCenters.values()]
-                    
-                    # Draw faces first
-                    faces = [
-                        ([0,1,5,4], 0),      # Front
-                        ([1,2,6,5], -20),    # Right
-                        ([2,3,7,6], -40),    # Back
-                        ([3,0,4,7], -20),    # Left
-                        ([4,5,6,7], -10),    # Top
-                        ([0,1,2,3], -30),    # Bottom
-                    ]
-                    
-                    # Sort faces by depth
-                    faces.sort(key=lambda f: sum(projectedPts[i][2] for i in f[0])/4)
-
-                    # Draw faces with transparency
-                    opacity = 30
-                    edgeWidth = 1
-                    baseColor = rgb(100,100,255) if color == 'blue' else rgb(200,200,200)
-
-                    # this part from Claude AI
-                    for faceIndices, colorAdj in faces:
-                        faceColor = rgb(max(0, baseColor.red + colorAdj),
-                                    max(0, baseColor.green + colorAdj),
-                                    max(0, baseColor.blue + colorAdj))
-                        
-                        facePoints = []
-                        for idx in faceIndices:
-                            facePoints.extend([projectedPts[idx][0], projectedPts[idx][1]])
-                        
-                        drawPolygon(*facePoints, fill=faceColor, opacity=opacity,
-                                    border='black', borderWidth=edgeWidth)
-
-                    # Define vertex to edge connections
-                    # Key is the vertex index, value is the edge indices that connect to the vertex
-                    vertexConnections = {
-                        0: [0, 3, 4],    # Front bottom left
-                        1: [0, 1, 5],    # Front bottom right
-                        2: [1, 2, 6],    # Back bottom right
-                        3: [2, 3, 7],    # Back bottom left
-                        4: [8, 11, 4],   # Front top left
-                        5: [8, 9, 5],    # Front top right
-                        6: [9, 10, 6],   # Back top right
-                        7: [10, 11, 7]   # Back top left
-                    }
-
-                    if app.showSubd:
-                        # Draw all connections
-                        for vertexIdx, edgeIndices in vertexConnections.items():
-                            for edgeIdx in edgeIndices:
-                                # Draw line from shifted vertex to edge center
-                                drawLine(projectedPtsShifted[vertexIdx][0], 
-                                        projectedPtsShifted[vertexIdx][1],
-                                        projectedEdgeCenters[edgeIdx][0], 
-                                        projectedEdgeCenters[edgeIdx][1], 
-                                        fill='red')
-                            
-                    # Draw the points last so they're on top
-                    for pt in projectedEdgeCenters:
-                        drawCircle(pt[0], pt[1], 2, fill='black')
-                    
-                    for pt in projectedPtsShifted:
-                        drawCircle(pt[0], pt[1], 2, fill='red')
-                    
-                    for pt in projectedFaceCenters:
-                        drawCircle(pt[0], pt[1], 2, fill='blue')
+        centerPt = Projection3D.basicProj(app, 0, 0, 0, app.rotationY, app.rotationX)
+        endOfX = Projection3D.basicProj(app, app.gridSize, 0, 0, app.rotationY, app.rotationX)
+        endOfY = Projection3D.basicProj(app, 0, app.gridSize, 0, app.rotationY, app.rotationX)
+        endOfZ = Projection3D.basicProj(app, 0, 0, app.gridSize, app.rotationY, app.rotationX)
         
-def drawGrid(app):
-    drawGridPlane(app, app.projection)
+        drawLine(centerPt[0], centerPt[1], endOfX[0], endOfX[1], fill=gridColor, dashes=True)
+        drawLine(centerPt[0], centerPt[1], endOfY[0], endOfY[1], fill=gridColor, dashes=True)
+        drawLine(centerPt[0], centerPt[1], endOfZ[0], endOfZ[1], fill=gridColor, dashes=True)
+        
+        drawLabel(f'x', endOfX[0], endOfX[1], size=20)
+        drawLabel(f'y', endOfY[0], endOfY[1], size=20)
+        drawLabel(f'z', endOfZ[0], endOfZ[1], size=20)
+        
+        # Draw grid boundaries along X axis
+        for i in range(app.gridSize + 1):
+            startPt = Projection3D.basicProj(app, i, 0, 0, app.rotationY, app.rotationX)
+            endPt = Projection3D.basicProj(app, i, app.gridSize, 0, app.rotationY, app.rotationX)
+            drawLine(startPt[0], startPt[1], endPt[0], endPt[1], fill=gridColor, dashes=True)
+
+        # Draw grid boundaries along Y axis
+        for i in range(app.gridSize + 1):
+            startPt = Projection3D.basicProj(app, 0, i, 0, app.rotationY, app.rotationX)
+            endPt = Projection3D.basicProj(app, app.gridSize, i, 0, app.rotationY, app.rotationX)
+            drawLine(startPt[0], startPt[1], endPt[0], endPt[1], fill=gridColor, dashes=True)
+
+    '''
+    Below are the methods for manipulating cells (which is self wrote)
+    getCellPoints: get all points and faces of a cell
+    cleanMesh: remove duplicate points and faces
+    '''
+    def getCellPoints(self, posList):
+        # Template cube points and faces
+        CUBE_POINTS = [
+            [0, 1, 1], [0, 0, 1], [1, 0, 1], [1, 1, 1],
+            [1, 0, 0], [1, 1, 0], [0, 0, 0], [0, 1, 0],
+        ]
+        CUBE_FACES = [
+            [0, 1, 2, 3], [3, 2, 4, 5], [5, 4, 6, 7],
+            [7, 0, 3, 5], [7, 6, 1, 0], [6, 1, 2, 4],
+        ]
+        
+        # Generate updated points after movement
+        allPts = []
+        for shift in posList:
+            for point in CUBE_POINTS:
+                # Add the shift to each point
+                new_point = [
+                    point[0] + shift[0],
+                    point[1] + shift[1],
+                    point[2] + shift[2]
+                ]
+                allPts.append(new_point)
+        
+        # Generate updated faces after movement
+        allFaces = []
+        for i, shift in enumerate(posList):
+            # For each cube, add its faces with updated indices
+            offset = i * len(CUBE_POINTS)  # offset is 8 for each subsequent cube
+            for face in CUBE_FACES:
+                # Add the offset to each point index in the face
+                new_face = [idx + offset for idx in face]
+                allFaces.append(new_face)
+        
+        return allPts, allFaces
+
+    def getFacePts(self, inputPoints, inputFaces):
+        face_centers = []
+
+        for face in inputFaces:
+            # Initialize center coordinates
+            center = [0.0, 0.0, 0.0]
+            
+            # Sum up all points of the face
+            for point_idx in face:
+                point = inputPoints[point_idx]
+                center[0] += point[0]
+                center[1] += point[1]
+                center[2] += point[2]
+            
+            # Divide by number of points to get average (center)
+            num_points = len(face)
+            center = [coord / num_points for coord in center]
+            
+            face_centers.append(tuple(center))
+
+        return face_centers
+    
+    # Got cleanPts and cleanFaces from getCellPoints
+    def cleanMesh(self, posList):
+        """Clean mesh by removing duplicate points and faces."""
+        allPts, allFaces = self.getCellPoints(posList)
+        point_map = dict()
+        cleaned_points = []
+        old_to_new_idx = dict()
+        
+        # Process points
+        for i, point in enumerate(allPts):
+            point_tuple = tuple(point)
+            if point_tuple not in point_map:
+                point_map[point_tuple] = len(cleaned_points)
+                cleaned_points.append(point)
+            old_to_new_idx[i] = point_map[point_tuple]
+        
+        # Clean faces and update indices
+        face_centers = set()
+        cleaned_faces = []
+        
+        for face in allFaces:
+            # Update indices
+            new_face = [old_to_new_idx[idx] for idx in face]
+            # Check for duplicate faces
+            center = self.getFacePts([allPts[idx] for idx in face], [[0,1,2,3]])[0]
+            if center not in face_centers:
+                face_centers.add(center)
+                cleaned_faces.append(new_face)
+        
+        return cleaned_points, cleaned_faces
+    
+    '''
+    get reference from wikipedia: https://en.wikipedia.org/wiki/Subdivision_surface
+    https://rosettacode.org/wiki/Catmull%E2%80%93Clark_subdivision_surface
+    from line 331 to 569 copied and modified to this python file
+    '''
+    def getEdgeFaces(self, inputPoints, inputFaces):
+        """
+        
+        Get list of edges and the one or two adjacent faces in a list.
+        also get center point of edge
+        
+        Each edge would be [pointnum_1, pointnum_2, facenum_1, facenum_2, center]
+        
+        """
+        
+        # will have [pointnum_1, pointnum_2, facenum]
+        
+        edges = []
+        
+        # get edges from each face
+        
+        for facenum in range(len(inputFaces)):
+            face = inputFaces[facenum]
+            num_points = len(face)
+            # loop over index into face
+            for pointindex in range(num_points):
+                # if not last point then edge is curr point and next point
+                if pointindex < num_points - 1:
+                    pointnum_1 = face[pointindex]
+                    pointnum_2 = face[pointindex+1]
+                else:
+                    # for last point edge is curr point and first point
+                    pointnum_1 = face[pointindex]
+                    pointnum_2 = face[0]
+                # order points in edge by lowest point number
+                if pointnum_1 > pointnum_2:
+                    temp = pointnum_1
+                    pointnum_1 = pointnum_2
+                    pointnum_2 = temp
+                edges.append([pointnum_1, pointnum_2, facenum])
+                
+        # sort edges by pointnum_1, pointnum_2, facenum
+        
+        edges = sorted(edges)
+        
+        # merge edges with 2 adjacent faces
+        # [pointnum_1, pointnum_2, facenum_1, facenum_2] or
+        # [pointnum_1, pointnum_2, facenum_1, None]
+        
+        num_edges = len(edges)
+        eindex = 0
+        merged_edges = []
+        
+        while eindex < num_edges:
+            e1 = edges[eindex]
+            # check if not last edge
+            if eindex < num_edges - 1:
+                e2 = edges[eindex+1]
+                if e1[0] == e2[0] and e1[1] == e2[1]:
+                    merged_edges.append([e1[0],e1[1],e1[2],e2[2]])
+                    eindex += 2
+                else:
+                    merged_edges.append([e1[0],e1[1],e1[2],None])
+                    eindex += 1
+            else:
+                merged_edges.append([e1[0],e1[1],e1[2],None])
+                eindex += 1
+                
+        # add edge centers
+        
+        edges_centers = []
+        
+        for me in merged_edges:
+            p1 = inputPoints[me[0]]
+            p2 = inputPoints[me[1]]
+            cp = [ (p1[0]+p2[0])/2, (p1[1]+p2[1])/2, (p1[2]+p2[2])/2 ]
+            edges_centers.append(me+[cp])
+                
+        return edges_centers
+        
+    '''
+    Set each edge point to be the average of the two neighbouring face points (A,F) and the two endpoints of the edge (M,E)
+    '''
+    def getEdgePoints(self, inputPoints, edgeFace, faceCenter):
+        edgePoints = []
+        
+        for edge in edgeFace:
+            # (M+E)/2
+            cp = edge[4]
+
+            fp1 = faceCenter[edge[2]]
+            # if not two faces just use one facepoint
+            # should not happen for solid like a cube
+            if edge[3] == None:
+                fp2 = fp1
+            else:
+                fp2 = faceCenter[edge[3]]
+
+            # (A+F)/2
+            cfp = (fp1[0] + fp2[0])/2, (fp1[1] + fp2[1])/2, (fp1[2] + fp2[2])/2
+            # (A+F+M+E)/4
+            edgePoint = (cp[0] + cfp[0])/2, (cp[1] + cfp[1])/2, (cp[2] + cfp[2])/2
+            edgePoints.append(edgePoint)
+            
+        return edgePoints
+    
+    def sumPoints(self, p1, p2):
+        sp = []
+        for i in range(3):
+            sp.append(p1[i] + p2[i])
+        return sp
+
+    def mulPoint(self, p, m):
+        mp = []
+        for i in range(3):
+            mp.append(p[i]*m)
+        return mp
+
+    def get_avg_face_points(self, input_points, input_faces, face_points):
+        num_points = len(input_points)
+        
+        temp_points = []
+        
+        for pointnum in range(num_points):
+            temp_points.append([[0.0, 0.0, 0.0], 0])
+        
+        for facenum in range(len(input_faces)):
+            fp = face_points[facenum]
+            for pointnum in input_faces[facenum]:
+                tp = temp_points[pointnum][0]
+                temp_points[pointnum][0] = self.sumPoints(tp,fp)
+                temp_points[pointnum][1] += 1
+                
+        avg_face_points = []
+        
+        for tp in temp_points:
+            afp = [tp[0][i]/tp[1] for i in range(3)]
+            avg_face_points.append(afp)
+            
+        return avg_face_points
+        
+    def get_avg_mid_edges(self, input_points, edges_faces):
+        num_points = len(input_points)
+        
+        temp_points = []
+        
+        for pointnum in range(num_points):
+            temp_points.append([[0.0, 0.0, 0.0], 0])
+            
+        for edge in edges_faces:
+            cp = edge[4]
+            for pointnum in [edge[0], edge[1]]:
+                tp = temp_points[pointnum][0]
+                temp_points[pointnum][0] = self.sumPoints(tp,cp)
+                temp_points[pointnum][1] += 1
+        
+        avg_mid_edges = []
+            
+        for tp in temp_points:
+            ame = [tp[0][i]/tp[1] for i in range(3)]
+            avg_mid_edges.append(ame)
+        
+        return avg_mid_edges
+
+    def get_points_faces(self, input_points, input_faces):
+        # initialize list with 0
+        
+        num_points = len(input_points)
+        
+        points_faces = []
+        
+        for pointnum in range(num_points):
+            points_faces.append(0)
+            
+        # loop through faces updating points_faces
+        
+        for facenum in range(len(input_faces)):
+            for pointnum in input_faces[facenum]:
+                points_faces[pointnum] += 1
+                
+        return points_faces
+
+    '''
+    F: face center; R: edge center; P: vertex point; n: number of faces
+    barycenter of P, R and F with respective weights (n − 3), 2 and 1
+    '''
+    def get_new_points(self, input_points, points_faces, avg_face_points, avg_mid_edges):
+        new_points =[]
+        
+        for pointnum in range(len(input_points)):
+            n = points_faces[pointnum]
+            m1 = (n - 3.0) / n
+            m2 = 1.0 / n
+            m3 = 2.0 / n
+            old_coords = input_points[pointnum]
+            p1 = self.mulPoint(old_coords, m1)
+            afp = avg_face_points[pointnum]
+            p2 = self.mulPoint(afp, m2)
+            ame = avg_mid_edges[pointnum]
+            p3 = self.mulPoint(ame, m3)
+            p4 = self.sumPoints(p1, p2)
+            new_coords = self.sumPoints(p4, p3)
+            
+            new_points.append(new_coords)
+            
+        return new_points
+
+    def switch_nums(self,point_nums):
+        if point_nums[0] < point_nums[1]:
+            return point_nums
+        else:
+            return (point_nums[1], point_nums[0])
+
+    def cmc_subdiv(self, input_points, input_faces):
+        # input_points and input_faces are the cleaned points and faces
+        face_points = self.getFacePts(input_points, input_faces)
+        edges_faces = self.getEdgeFaces(input_points, input_faces)
+        edge_points = self.getEdgePoints(input_points, edges_faces, face_points)
+        avg_face_points = self.get_avg_face_points(input_points, input_faces, face_points)
+        avg_mid_edges = self.get_avg_mid_edges(input_points, edges_faces) 
+        points_faces = self.get_points_faces(input_points, input_faces)
+        
+        """
+        m1 = (n - 3) / n
+        m2 = 1 / n
+        m3 = 2 / n
+        new_coords = (m1 * old_coords)
+                + (m2 * avg_face_points)
+                + (m3 * avg_mid_edges)
+        """
+        new_points = self.get_new_points(input_points, points_faces, avg_face_points, avg_mid_edges)
+        
+        face_point_nums = []
+        
+        next_pointnum = len(new_points)
+        
+        for face_point in face_points:
+            new_points.append(face_point)
+            face_point_nums.append(next_pointnum)
+            next_pointnum += 1
+        
+        edge_point_nums = dict()
+        
+        for edgenum in range(len(edges_faces)):
+            pointnum_1 = edges_faces[edgenum][0]
+            pointnum_2 = edges_faces[edgenum][1]
+            edge_point = edge_points[edgenum]
+            new_points.append(edge_point)
+            edge_point_nums[(pointnum_1, pointnum_2)] = next_pointnum
+            next_pointnum += 1
+
+        new_faces =[]
+        
+        for oldfacenum in range(len(input_faces)):
+            oldface = input_faces[oldfacenum]
+            # 4 point face
+            if len(oldface) == 4:
+                a = oldface[0]
+                b = oldface[1]
+                c = oldface[2]
+                d = oldface[3]
+                face_point_abcd = face_point_nums[oldfacenum]
+                edge_point_ab = edge_point_nums[self.switch_nums((a, b))]
+                edge_point_da = edge_point_nums[self.switch_nums((d, a))]
+                edge_point_bc = edge_point_nums[self.switch_nums((b, c))]
+                edge_point_cd = edge_point_nums[self.switch_nums((c, d))]
+                new_faces.append((a, edge_point_ab, face_point_abcd, edge_point_da))
+                new_faces.append((b, edge_point_bc, face_point_abcd, edge_point_ab))
+                new_faces.append((c, edge_point_cd, face_point_abcd, edge_point_bc))
+                new_faces.append((d, edge_point_da, face_point_abcd, edge_point_cd))
+        
+        return new_points, new_faces
+
+    # Final output to draw, pass in to projection to draw
+    def getOutput(self, posList):
+        cleaned_points, cleaned_faces = self.cleanMesh(posList)
+        print(f"cleaned_points ({len(cleaned_points)}):", cleaned_points)
+        print(f"cleaned_faces ({len(cleaned_faces)}):", cleaned_faces)
+        
+        iterations = int(1)
+        output_points, output_faces = cleaned_points, cleaned_faces
+
+        for i in range(iterations):
+            output_points, output_faces = self.cmc_subdiv(output_points, output_faces)
+
+        return output_points, output_faces
+
+def drawCell(app, posList):
+    output_points, output_faces = app.draw.getOutput(posList)
+    # First project all points
+    projectedpts = []
+    for point in output_points:
+        projectedpts.append(app.projection.basicProj(app, point[0], point[1], point[2], app.rotationY, app.rotationX))
+
+    # Draw the connecting lines for each face
+    for face in output_faces:
+        # Connect each point in the face to the next point
+        for i in range(len(face)):
+            # Get current point and next point (wrapping around to first point)
+            pt1 = projectedpts[face[i]]
+            pt2 = projectedpts[face[(i + 1) % len(face)]]
+            
+            # Draw line between the points
+            drawLine(pt1[0], pt1[1], pt2[0], pt2[1], fill='blue')
+
+    # Draw points on top of lines
+    for projPt in projectedpts:
+        drawCircle(projPt[0], projPt[1], 2, fill='red')
+
+# Draw all on the grid
+def drawGrid(app, posList):
+    app.draw.drawGridPlane(app, app.projection)
     cubesToDraw = []
     
     for z in range(app.grid.gridSize):
@@ -475,33 +715,15 @@ def drawGrid(app):
                     # draw the cell at the center of the cube
                     depth = app.projection.basicProj(app, x+0.5, y+0.5, z+0.5, app.rotationY, app.rotationX)[2]
                     cubesToDraw.append((depth, existCell, False))
-
+                    
     app.cell.x = app.currentX
     app.cell.y = app.currentY
     app.cell.z = app.currentZ
+    print(f"cubesToDraw ({len(cubesToDraw)}):", cubesToDraw)
     
-    # draw the current cell, just for init & indication
-    depth = app.projection.basicProj(app, app.currentX+0.5, app.currentY+0.5, app.currentZ+0.5, app.rotationY, app.rotationX)[2]
-    cubesToDraw.append((depth, app.cell, True))
-    
-    # Sort the cubesToDraw by depth
-    cubesToDraw.sort(key=lambda x: x[0])
-    for depth, cell, isSubd in cubesToDraw:
-        # color the current cell blue
-        color = 'blue' if cell == app.cell else 'black'
-        drawCell(app, cell, app.projection, color, isSubd)
-
-# use backtracking to check if the cell is alone or not
-def isSubdCell(app):
-    # use the face centers, if two face centers are close, show the ori cell without subdivision, turn the isSubd to False
-    # if the face centers is alone, show the subdivision cell, turn the isSubd to True
-    # TODO:
-    pass
-
-def snapCells(app):
-    # if 2 cells are adjacent (like face center is side to side), turn the cell into a bigger one, draw less faces
-    # TODO:
-    pass
+    # from cubesToDraw, get the output points and faces
+    # output_points, output_faces = app.draw.getOutput(posList)
+    drawCell(app, posList)
 
 def importImage(app):
     root = tk.Tk()
@@ -518,6 +740,7 @@ def importImage(app):
 
 def init(app):
     app.projection = Projection3D()
+    app.draw = Draw()
     
     #board szie
     app.boardLeft = 300
@@ -529,6 +752,10 @@ def init(app):
     app.currentX = 0
     app.currentY = 0
     app.currentZ = 0
+    
+    app.currentPos = [[app.currentX, app.currentY, app.currentZ]]
+    
+    app.posListAll = []
     app.lastValidX = 0
     app.lastValidY = 0
     app.gridScale = 1
@@ -579,7 +806,7 @@ def onMousePress(app, mouseX, mouseY):
     app.lastMouseX = mouseX
     app.lastMouseY = mouseY
     if (app.frameImgX + app.frameImgSize/2 - app.buttonSize/2 < mouseX < app.frameImgX + app.frameImgSize/2 + app.buttonSize/2 and
-        app.height/2 + app.frameImgSize/2 + app.buttonSize/2 < mouseY < app.height/2 + app.frameImgSize/2 + app.buttonSize*(3/2)):
+        app.height/2 + app.frameImgSize/2 + app.buttonSize/2 < mouseY < app.height/2 + app.frameImgSize/2 + app.buttonSize*2):
         importImage(app)
 
 def onMouseDrag(app, mouseX, mouseY):
@@ -609,6 +836,9 @@ def onKeyPress(app, key):
         
         if (app.grid.isPosValid(app.cell) and
             app.grid.getCell(app.cell) is None):
+            app.posListAll.extend(app.cell.getPlacementPos())
+            print(app.cell.getPlacementPos())
+            print(f"space -> app.posListAll ({len(app.posListAll)}):", app.posListAll)
             placeable = app.grid.placeCell(app.cell)
             print("Can place, Placed cell at:", app.cell.x, app.cell.y, app.cell.z) 
             if placeable:
@@ -704,28 +934,59 @@ def onStep(app):
         app.currentY = mappedY
         app.lastValidX = mappedX
         app.lastValidY = mappedY
+        app.currentPos = [[app.currentX, app.currentY, app.currentZ]]
 
 def redrawAll(app):
     # title
     drawLabel('Build Game',app.width/2, 20, size=24)
     
     # Main drawing
-    drawGrid(app)
+    drawGrid(app, app.posListAll)
+    drawGrid(app, app.currentPos)
     
-    # Instruction
+    # Instructions section
+    instructionY = 60
+    spacing = 15
+    
+    # Movement controls
+    drawLabel('Controls:', app.width/2, instructionY, size=15, bold=True)
+    drawLabel('• Use hand gestures to move the cube in X/Y plane', app.width/2, instructionY + spacing,size=12)
+    drawLabel('• Hold index and middle fingers together to move in Z axis', app.width/2, instructionY + spacing*2,size=12)
+    
+    # Building controls
+    drawLabel('Building:', app.width/2, instructionY + spacing*3.5, size=15, bold=True)
+    drawLabel('• SPACE: Place cube', app.width/2, instructionY + spacing*4.5,size=12)
+    drawLabel('• 1-4: Change block type (1:Default, 2:L-Shape, 3:T-Shape, 4:Stair)', app.width/2, instructionY + spacing*5.5,size=12)
+    drawLabel('• Q/E: Increase/Decrease cube size', app.width/2, instructionY + spacing*6.5,size=12)
+    
+    # View controls
+    drawLabel('View Controls:', app.width/2, instructionY + spacing*8, size=15, bold=True)
+    drawLabel('• Drag mouse: Rotate view', app.width/2, instructionY + spacing*9,size=12)
+    drawLabel('• Left/Right arrows: Zoom in/out', app.width/2, instructionY + spacing*10,size=12)
+    drawLabel('• Up/Down arrows: Change grid size', app.width/2, instructionY + spacing*11,size=12)
+    
+    # Special features
+    drawLabel('Special Features:', app.width/2, instructionY + spacing*12.5, size=15, bold=True)
+    drawLabel('• S: Toggle subdivision view', app.width/2, instructionY + spacing*13.5,size=12)
+    drawLabel('• [ ]: Adjust fractal level (current: ' + str(app.fracLevel) + ')', app.width/2, instructionY + spacing*14.5,size=12)
+    drawLabel('• R: Reset game', app.width/2, instructionY + spacing*15.5,size=12)
+    
+    # Current position and hand detection status
+    drawLabel(f'Current Position: ({app.currentX}, {app.currentY}, {app.currentZ})', 
+             app.width/2, app.height - spacing*2,size=12)
+    
     if app.handCountX or app.handCountY:
-        drawLabel(f'count: {app.handCountX}, {app.handCountY}', app.width/2, app.height - 20, size = 20)
+        drawLabel(f'Hand Position: ({pythonRound(app.handCountX, 2)}, {pythonRound(app.handCountY, 2)})', 
+                 app.width/2, app.height - spacing,size=12)
     else:
-        drawLabel('Hand not detected, Move your hand to move the cube', app.width/2, app.height - 20, size = 20)    
-    drawLabel('SPACE to place cube, R to reset, S to show subdivision', app.width/2, 60, size=20)
-    drawLabel(f'current: {app.currentX}, {app.currentY}, {app.currentZ}', app.width/2, 100, size=20)
-    drawLabel(f'fracLevel: {app.fracLevel}, use [ ] to change', app.width/2, 140, size=20)
+        drawLabel('Hand not detected - Move your hand to control the cube', 
+                 app.width/2, app.height - spacing,size=12, fill='red')
     
     # import the image 
     if app.image is not None:
         drawImage(app.image, app.frameImgX, app.height/2-app.frameImgSize/2, width=app.frameImgSize, height=app.frameImgSize)
     drawRect(app.frameImgX, app.height/2-app.frameImgSize/2, app.frameImgSize, app.frameImgSize, fill=None, border='black')
-    drawImage('import.png', app.frameImgX + app.frameImgSize/2 - app.buttonSize/2, app.height/2 + app.frameImgSize/2 + app.buttonSize, width=app.buttonSize, height=app.buttonSize)
+    drawImage('importIcon.png', app.frameImgX + app.frameImgSize/2 - app.buttonSize/2, app.height/2 + app.frameImgSize/2 + app.buttonSize, width=app.buttonSize, height=app.buttonSize)
 
 def main():
     runApp(width=1200, height=800)

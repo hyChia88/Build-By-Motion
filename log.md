@@ -146,5 +146,12 @@ This creates a more organic, rounded cube shape while preserving the overall cub
 
 ## Bugs:
 [/] move still bound in old gridSize
+[/] subdivision success in both single cell or complex cell, in test1.py, but not in Draw.py
 [ ] place cell only place the ori curr cell (1x1x1) but not the entire -> at least now type 1 & 2 is working well.
 [ ] resize works -> it is showing the resized cell, but not placing it in the grid (max shapes error).
+
+# Update: 12/01/2024
+<!-- rewrite the draw cell , included subdivision algorithm and snap algorithm -->
+<!-- subdivision able to work on single cell and complex cell and in the environment of the grid -->
+
+[] subdivision level is not updating
