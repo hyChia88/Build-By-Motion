@@ -59,6 +59,7 @@ The project uses with GitHub for backup and collaboration:
 Remote: https://github.com/huiyenc/112-term-project-2024-fall
 - Remote repository on GitHub serves as backup, regular commits tracking feature additions and bug fixes.
 - Commit history provides rollback capability if needed
+![alt text](image.png)
 Local:
 - Local backups saved in my own laptop, regularly pushed to remote
 
@@ -109,16 +110,52 @@ Run the application: run MenuPage.py , it will automatically run Build.py or Dra
 - Matrix transformations
 
 =============================================================================
+## Storyboard
+### Opening Menu
+1. Two main options displayed:
+   - Build Mode
+   - Draw Mode
+2. Help and settings buttons visible [*future*]
+
+### Build Mode Flow
+1. User enters 3D building environment
+2. Empty grid appears with coordinate system
+3. User can:
+   - Place basic cube cells
+   - Rotate view with mouse
+   - Move cells with hand gestures
+   - Apply subdivisions
+   - Save/load creations [*future*]
+
+### Draw Mode Flow  
+1. User enters 2D drawing grid
+2. Tools appear:
+   - Mouse drawing
+   - Hand gesture controls
+   - Subdivision options
+   - Pattern generation
+3. User creates patterns by:
+   - Drawing directly
+   - Using hand gestures
+   - Applying subdivisions
+4. Option to view in 3D [*future*]
+
+### UX experience
+   - Save & Export result [*future*]
+
+=============================================================================
 ## Notes
 - Webcam access required for hand gesture features
 - Recommended screen resolution: 1200x800
 - Maximum subdivision level: 3 #(for now, not completed yet)
 
 =============================================================================
-## References & Acknowledgements
-
+## References & Citations
+### 3D projection
 - https://skannai.medium.com/projecting-3d-points-into-a-2d-screen-58db65609f24
+
+### Hand gesture control
 - https://www.youtube.com/watch?v=X8kC5p76y7s
 
-=============================================================================
-## Storyboard
+### Catmull-Clark subdivision
+- https://en.wikipedia.org/wiki/Catmull%E2%80%93Clark_subdivision_surface
