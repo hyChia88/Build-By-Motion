@@ -6,7 +6,6 @@ import numpy as np
 from cmu_graphics import *
 import math
 import cv2
-# import numpy as np
 import mediapipe as mp
 import tkinter as tk
 from tkinter import filedialog
@@ -133,16 +132,16 @@ class Cell:
 
     '''return a list of (x,y,z), get the exact pattern pos of cell, send to board and make it not None (occupied)'''
     def getPlacementPos(self):
-        posList = []
+        cellPosList = []
         # get the exact pattern pos of cell, send to board and make it not None (occupied)
         pattern = self.getPattern()
         for x in range(len(pattern)):
             for y in range(len(pattern[x])):
                 for z in range(len(pattern[x][y])):
                     if pattern[x][y][z] is True:
-                        pos = (self.x+x, self.y+y, self.z+z)
-                        posList.append(pos)
-        return posList
+                        pos = [self.x+x, self.y+y, self.z+z]
+                        cellPosList.append(pos)
+        return cellPosList
     
 '''
 Various types of cells, inherit from Cell class
@@ -271,6 +270,11 @@ class Projection3D:
         return (screenX, screenY, finalZ)
 
 class Draw:
+    def __init__(self):
+        self.cached_posList = []
+        self.cached_outputPts = []
+        self.cached_outputFaces = []
+
 # Main method:
     def drawGridPlane(self, app, Projection3D):
         gridColor = rgb(200,200,200) #grey
@@ -529,7 +533,10 @@ class Draw:
         avg_face_points = []
         
         for tp in temp_points:
-            afp = [tp[0][i]/tp[1] for i in range(3)]
+            if tp[1] > 0:
+                afp = [tp[0][i]/tp[1] for i in range(3)]
+            else:
+                afp = tp[0]
             avg_face_points.append(afp)
             
         return avg_face_points
@@ -552,7 +559,10 @@ class Draw:
         avg_mid_edges = []
             
         for tp in temp_points:
-            ame = [tp[0][i]/tp[1] for i in range(3)]
+            if tp[1] > 0:
+                ame = [tp[0][i]/tp[1] for i in range(3)]
+            else:
+                ame = tp[0]
             avg_mid_edges.append(ame)
         
         return avg_mid_edges
@@ -584,9 +594,14 @@ class Draw:
         
         for pointnum in range(len(input_points)):
             n = points_faces[pointnum]
-            m1 = (n - 3.0) / n
-            m2 = 1.0 / n
-            m3 = 2.0 / n
+            if n > 0:
+                m1 = (n - 3.0) / n
+                m2 = 1.0 / n
+                m3 = 2.0 / n
+            else:
+                m1 = (n - 3.0)
+                m2 = 1.0 
+                m3 = 2.0
             old_coords = input_points[pointnum]
             p1 = self.mulPoint(old_coords, m1)
             afp = avg_face_points[pointnum]
@@ -667,21 +682,26 @@ class Draw:
         return new_points, new_faces
 
     # Final output to draw, pass in to projection to draw
-    def getOutput(self, posList):
-        cleaned_points, cleaned_faces = self.cleanMesh(posList)
-        print(f"cleaned_points ({len(cleaned_points)}):", cleaned_points)
-        print(f"cleaned_faces ({len(cleaned_faces)}):", cleaned_faces)
+    def getOutput(self, posList, subdLvl):
+        if posList == self.cached_posList:
+            return self.cached_outputPts, self.cached_outputFaces
         
-        iterations = int(1)
+        self.cached_posList = posList
+        cleaned_points, cleaned_faces = self.cleanMesh(posList)
+        # print(f"cleaned_points ({len(cleaned_points)}):", cleaned_points)
+        # print(f"cleaned_faces ({len(cleaned_faces)}):", cleaned_faces)
+        
+        iterations = subdLvl
         output_points, output_faces = cleaned_points, cleaned_faces
 
         for i in range(iterations):
             output_points, output_faces = self.cmc_subdiv(output_points, output_faces)
 
+        self.cached_outputPts, self.cached_outputFaces = output_points, output_faces
         return output_points, output_faces
 
-def drawCell(app, posList):
-    output_points, output_faces = app.draw.getOutput(posList)
+def drawCell(app, posList, isConfirmed):
+    output_points, output_faces = app.draw.getOutput(posList, app.subdLvl)
     # First project all points
     projectedpts = []
     for point in output_points:
@@ -696,34 +716,24 @@ def drawCell(app, posList):
             pt2 = projectedpts[face[(i + 1) % len(face)]]
             
             # Draw line between the points
-            drawLine(pt1[0], pt1[1], pt2[0], pt2[1], fill='blue')
+            drawLine(pt1[0], pt1[1], pt2[0], pt2[1], fill='grey' if isConfirmed else 'blue')
 
-    # Draw points on top of lines
-    for projPt in projectedpts:
-        drawCircle(projPt[0], projPt[1], 2, fill='red')
+    # if not isConfirmed:
+    #     # Draw points on top of lines
+    #     for projPt in projectedpts:
+    #         drawCircle(projPt[0], projPt[1], 2, fill='red')
 
 # Draw all on the grid
-def drawGrid(app, posList):
-    app.draw.drawGridPlane(app, app.projection)
-    cubesToDraw = []
-    
-    for z in range(app.grid.gridSize):
-        for y in range(app.grid.gridSize):
-            for x in range(app.grid.gridSize):
-                existCell = app.grid.board[z][y][x]
-                if existCell is not None:
-                    # draw the cell at the center of the cube
-                    depth = app.projection.basicProj(app, x+0.5, y+0.5, z+0.5, app.rotationY, app.rotationX)[2]
-                    cubesToDraw.append((depth, existCell, False))
+def drawGrid(app, posList, isConfirmed):
+    if not isConfirmed:
+        app.draw.drawGridPlane(app, app.projection)
+
                     
     app.cell.x = app.currentX
     app.cell.y = app.currentY
     app.cell.z = app.currentZ
-    print(f"cubesToDraw ({len(cubesToDraw)}):", cubesToDraw)
-    
-    # from cubesToDraw, get the output points and faces
-    # output_points, output_faces = app.draw.getOutput(posList)
-    drawCell(app, posList)
+
+    drawCell(app, posList, isConfirmed)
 
 def importImage(app):
     root = tk.Tk()
@@ -753,7 +763,7 @@ def init(app):
     app.currentY = 0
     app.currentZ = 0
     
-    app.currentPos = [[app.currentX, app.currentY, app.currentZ]]
+    app.currentPosList = [[app.currentX, app.currentY, app.currentZ]]
     
     app.posListAll = []
     app.lastValidX = 0
@@ -764,6 +774,7 @@ def init(app):
     app.newSize = 1
     app.angle = 30
     app.fracLevel = 1
+    app.subdLvl = 2
     
     app.rotationY = math.pi/4 # 45 degree
     app.rotationX = math.pi/6 # 30 degree
@@ -837,10 +848,12 @@ def onKeyPress(app, key):
         if (app.grid.isPosValid(app.cell) and
             app.grid.getCell(app.cell) is None):
             app.posListAll.extend(app.cell.getPlacementPos())
-            print(app.cell.getPlacementPos())
-            print(f"space -> app.posListAll ({len(app.posListAll)}):", app.posListAll)
+            # app.posListAll.extend(app.currentPosList)
+            print(f"app.cell.getPlacementPos() ({len(app.cell.getPlacementPos())}):", app.cell.getPlacementPos())
+            print(f"app.currentPosList ({len(app.currentPosList)}):", app.currentPosList)
+            print(f"app.posListAll ({len(app.posListAll)}):", app.posListAll)
+
             placeable = app.grid.placeCell(app.cell)
-            print("Can place, Placed cell at:", app.cell.x, app.cell.y, app.cell.z) 
             if placeable:
                 if app.currentZ >= app.gridSize - 1:
                     app.currentZ = 0
@@ -857,16 +870,21 @@ def onKeyPress(app, key):
                 print(''.join(['X' if cell else '.' for cell in row]))
             
     elif key == 'd':
-        if isinstance(app.cell, Cell) and app.cell.resizable and app.newSize > 1:
-            app.newSize -= 1
-            print("removed cube at:", app.currentX, app.currentY, app.currentZ)
+        currPos = app.cell.getPlacementPos()
+        for pos in currPos:
+            if pos in app.posListAll:
+                app.posListAll.remove(pos)
+            # app.grid.removeCell(app.cell)
+            print("removed cube at:", app.cell.getPlacementPos())
+        else:
+            print("cube not found at:", app.cell.getPlacementPos())
 
-    elif key == 'q':
+    elif key == '6':
         if isinstance(app.cell, Cell) and app.cell.resizable and app.newSize < 3:
             app.newSize += 1
             app.cell.resize(app.newSize)
 
-    elif key == 'e':
+    elif key == '5':
         if isinstance(app.cell, Cell) and app.cell.resizable and app.newSize > 1:
             app.newSize -= 1
             app.cell.resize(app.newSize)
@@ -892,17 +910,17 @@ def onKeyPress(app, key):
     elif key == 's':
         app.showSubd = not app.showSubd
     elif key == ']':
-        if app.fracLevel == 3:
-            app.fracLevel = 3
+        if app.subdLvl == 2:
+            app.subdLvl = 2
         else:
-            app.fracLevel += 1
-        print(f"fracLevel to: {app.fracLevel}") 
+            app.subdLvl += 1
+        print(f"subdLvl to: {app.subdLvl}") 
     elif key == '[':
-        if app.fracLevel == 1:
-            app.fracLevel = 1
+        if app.subdLvl == 0:
+            app.subdLvl = 0
         else:
-            app.fracLevel -= 1
-        print(f"fracLevel to: {app.fracLevel}")  
+            app.subdLvl -= 1
+        print(f"subdLvl to: {app.subdLvl}")  
     elif key == 'left':
         app.scale -= 0.1
     elif key == 'right':
@@ -934,15 +952,15 @@ def onStep(app):
         app.currentY = mappedY
         app.lastValidX = mappedX
         app.lastValidY = mappedY
-        app.currentPos = [[app.currentX, app.currentY, app.currentZ]]
 
 def redrawAll(app):
     # title
     drawLabel('Build Game',app.width/2, 20, size=24)
     
     # Main drawing
-    drawGrid(app, app.posListAll)
-    drawGrid(app, app.currentPos)
+    # problem here : keep calling the drawGrid
+    drawGrid(app, app.posListAll, True)
+    drawGrid(app, app.cell.getPlacementPos(), False)
     
     # Instructions section
     instructionY = 60

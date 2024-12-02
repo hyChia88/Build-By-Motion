@@ -9,7 +9,7 @@ class PatternSubdivision:
     def __init__(self, initial_pattern):
         self.fractalLevel = 0
         self.pattern = initial_pattern
-        self.maxLevel = 3
+        self.maxLevel = 2
     
     def subdivide(self):
         if self.fractalLevel >= self.maxLevel:  # Limit max subdivision level
@@ -141,6 +141,8 @@ def onAppStart(app):
     app.handCountY = app.detector.prevY if app.detector.prevY is not None else 0
     app.isHandDraw = False
     
+    app.hasPrintedPattern = False  # Add a flag to track if the pattern has been printed
+
 def onStep(app):
     handX, handY = app.detector.detectGesture()
     onHandDraw(app, app.detector, handX, handY)
@@ -188,23 +190,23 @@ def drawGrid(app):
                         app.cellSize, app.cellSize,
                         fill='black')
 
-def drawSubdivision(app):
+def drawSubdivision(app, pattern):
     if app.subdivision:
         # Draw background
         # drawRect(0, 0, app.width, app.height, fill='grey')
         
         # Calculate cell size for subdivided pattern
-        cell_size = (min(app.width, app.height) - 2*app.margin) / len(app.subdivision.pattern)
+        cell_size = (min(app.width, app.height) - 2*app.margin) / len(pattern)
         
         # Draw subdivided pattern
-        for y in range(len(app.subdivision.pattern)):
-            for x in range(len(app.subdivision.pattern)):
-                if app.subdivision.pattern[y][x]:
+        for y in range(len(pattern)):
+            for x in range(len(pattern)):
+                if pattern[y][x]:
                     drawRect(app.margin + x * cell_size, app.margin + y * cell_size, cell_size, cell_size, fill='black')
 
 def redrawAll(app):
     if app.isShowSubd:
-        drawSubdivision(app)
+        drawSubdivision(app, app.subdivision.pattern)
     else:
         drawGrid(app)
         if not app.isShowSubd and app.detector.prevX is not None and app.detector.prevY is not None:

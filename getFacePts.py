@@ -87,7 +87,7 @@ def clean_mesh(points, faces):
         old_to_new_idx[i] = point_map[point_tuple]
     
     # Clean faces and update indices
-    face_centers = set()
+    face_centers = dict()
     cleaned_faces = []
     
     for face in faces:
@@ -96,8 +96,10 @@ def clean_mesh(points, faces):
         # Check for duplicate faces
         center = getFacePts([points[idx] for idx in face], [[0,1,2,3]])[0]
         if center not in face_centers:
-            face_centers.add(center)
-            cleaned_faces.append(new_face)
+            face_centers[center] = face_centers.get(center, 0) + 1
+            if face_centers[center] == 1:
+                cleaned_faces.append(new_face)
+    print(face_centers)
     
     return cleaned_points, cleaned_faces
 
@@ -109,10 +111,11 @@ Defination of "clean":
 3. replace the point in each face by the first point in ptsDict[tuple(pt)]
 '''
 # move cell to test
-shifts = [(0,0,0)]  # Original position and shifted +1 in x
+shifts = [[0, 0, 0], [0, 0, 1], [0, 0, 2], [0, 1, 0], [0, 1, 1], [0, 1, 2], [0, 2, 0], [0, 2, 1], [0, 2, 2], [1, 0, 0], [1, 0, 1], [1, 0, 2], [1, 1, 0], [1, 1, 1], [1, 1, 2], [1, 2, 0], [1, 2, 1], [1, 2, 2]]
+
 allPts, allFaces = moveCell(shifts)
 
-# With this:
+# # With this:
 cleaned_points, cleaned_faces = clean_mesh(allPts, allFaces)
 print(f"cleaned points ({len(cleaned_points)}):", cleaned_points)
 print(f"cleaned faces ({len(cleaned_faces)}):", cleaned_faces)
