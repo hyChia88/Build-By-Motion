@@ -151,11 +151,16 @@ This creates a more organic, rounded cube shape while preserving the overall cub
 [ ] Exceed shape limit : resize works -> it is showing the resized cell, but not placing it in the grid (max shapes error). For some readon, the cell is not "snap" tgt
 
 # Update: 12/01/2024
-<!-- rewrite the draw cell , included subdivision algorithm and snap algorithm -->
-<!-- subdivision able to work on single cell and complex cell and in the environment of the grid -->
+# Update feature:
+<!-- 1. Import image for reference function-->
+<!-- 2. rewrite the draw cell , included subdivision algorithm and snap algorithm -->
+<!-- 3. subdivision able to work on single cell and complex cell and in the environment of the grid -->
 <!-- 4 kinds of cells are able to work, but not able to stop at the grid edge -->
-<!-- remove cell is able to work -->
-<!-- Save after resize grid -->
+<!-- 5. remove cell is able to work -->
+<!-- 6. Save after resize grid -->
+
+# Bugs:
 [ ] drawGrid keep calling itself
 [ ] MenuPage.py & the other py file not linked together
 [ ] check all the proected pt, if proctedpt count > 2, then remove it, draw a big polygon as surface instead
+
