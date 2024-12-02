@@ -36,13 +36,14 @@ def moveCell(movement):
     
     # Generate updated faces
     allFaces = []
-    for i, shift in enumerate(movement):
+    offset = 0
+    for shift in movement:
         # For each cube, add its faces with updated indices
-        offset = i * len(CUBE_POINTS)  # offset is 8 for each subsequent cube
         for face in CUBE_FACES:
             # Add the offset to each point index in the face
             new_face = [idx + offset for idx in face]
             allFaces.append(new_face)
+        offset += len(CUBE_POINTS)  # offset is 8 for each subsequent cube
     
     return allPts, allFaces
 
@@ -79,12 +80,14 @@ def clean_mesh(points, faces):
     old_to_new_idx = dict()
     
     # Process points
-    for i, point in enumerate(points):
+    i = 0
+    for point in allPts:
         point_tuple = tuple(point)
         if point_tuple not in point_map:
             point_map[point_tuple] = len(cleaned_points)
             cleaned_points.append(point)
         old_to_new_idx[i] = point_map[point_tuple]
+        i += 1
     
     # Clean faces and update indices
     face_centers = dict()
@@ -111,7 +114,7 @@ Defination of "clean":
 3. replace the point in each face by the first point in ptsDict[tuple(pt)]
 '''
 # move cell to test
-shifts = [[0, 0, 0], [0, 0, 1], [0, 0, 2], [0, 1, 0], [0, 1, 1], [0, 1, 2], [0, 2, 0], [0, 2, 1], [0, 2, 2], [1, 0, 0], [1, 0, 1], [1, 0, 2], [1, 1, 0], [1, 1, 1], [1, 1, 2], [1, 2, 0], [1, 2, 1], [1, 2, 2]]
+shifts = [[0, 0, 0], [0, 0, 1], [0, 0, 2]]
 
 allPts, allFaces = moveCell(shifts)
 

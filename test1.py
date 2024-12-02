@@ -515,21 +515,30 @@ class Projection3D:
         pass
 
     def basicProj(self, app, x, y, z, rotationY,rotationX):
+        # rotationY = math.radians(rotationY)
+        # rotationX = math.radians(rotationX)
         '''
         Do Y-axis rotation first, then X-axis rotation
         scale and translate to screen coordinates
         '''
-        rotX = x * math.cos(rotationY) - y * math.sin(rotationY)
-        rotY = x * math.sin(rotationY) + y * math.cos(rotationY)
+        # 3d matrix rotation
+        matrix = [[ math.cos(rotationY),math.sin(rotationY)],
+                [ math.cos(rotationX),math.sin(rotationX)],
+                [ 0, 1]]
+        # matrix multiplication with 3d point
+        oriX = x * matrix[0][0] + y * matrix[1][0] + z * matrix[2][0]
+        oriY = x * matrix[0][1] + y * matrix[1][1] + z * matrix[2][1]
         
-        finalY = rotY * math.cos(rotationX) - z * math.sin(rotationX)
-        finalZ = rotY * math.sin(rotationX) + z * math.cos(rotationX)
+        screenX = oriX * app.cellSize * app.scale
+        screenY = oriY * app.cellSize * app.scale
         
-        screenX = app.boardLeft + app.boardWidth/2 + rotX * app.cellSize * app.scale
-        screenY = app.boardTop + app.boardHeight/2 + finalY * app.cellSize * app.scale
+        '''
+        pt1 = x * math.cos(rotationY) + y * math.cos(rotationX) + z * 0
+        pt2 = x * math.sin(rotationY) + y * math.sin(rotationX) + z * 1
+        '''
         
-        return (screenX, screenY, finalZ)
-
+        return (screenX, screenY)
+    
 def onKeyPress(app, key):
     if key == "q":
         if app.subdLvl < 2:

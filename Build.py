@@ -1,14 +1,12 @@
 '''
 This is the building page that allows the user to build on a grid with blocks (cells)
 '''
-from re import L
-import numpy as np
 from cmu_graphics import *
 import math
 import cv2
 import mediapipe as mp
 import tkinter as tk
-from tkinter import filedialog
+from tkinter import filedialog as fd
 
 from getFacePts import clean_mesh
 
@@ -30,15 +28,17 @@ class Grid3D:
     def isPosValid(self, cell):
         positionList = cell.getPlacementPos()
         if isinstance(cell, Cell):
-            for pos in positionList:
-                # Check bounds first
-                if not (0 <= pos[0] < self.gridSize and
-                       0 <= pos[1] < self.gridSize and
-                       0 <= pos[2] < self.gridSize):
-                    return False
-                # Then check if position is occupied
-                if self.board[pos[2]][pos[1]][pos[0]] is not None:
-                    return False
+            # check if the cell size is within the grid size
+            if (0 <= len(positionList) <= self.gridSize):
+                for pos in positionList:
+                    # check if index within the bound/grid size
+                    if not (0 <= pos[0] < self.gridSize and
+                           0 <= pos[1] < self.gridSize and
+                           0 <= pos[2] < self.gridSize):
+                        return False
+                    # Then check if position is occupied
+                    if self.board[pos[2]][pos[1]][pos[0]] is not None:
+                        return False
             return True
         return False
     
@@ -65,7 +65,9 @@ class Grid3D:
         return None
 
     def removeCell(self, cell):
-        if 0 <= cell.x < self.gridSize and 0 <= cell.y < self.gridSize and 0 <= cell.z < self.gridSize:
+        if (0 <= cell.x < self.gridSize and 
+            0 <= cell.y < self.gridSize and 
+            0 <= cell.z < self.gridSize):
             cell = self.getCell(cell)
             if cell is not None:
                 positionList = cell.getPlacementPos()
@@ -73,20 +75,6 @@ class Grid3D:
                     self.board[pos[2]][pos[1]][pos[0]] = None
                 return True
         return False
-
-class CellFactory:
-    @staticmethod
-    def createCell(cellType, x, y, z, fracLevel=1):
-        cell_types = {
-            'default': Cell,
-            'L': LShapeCell,
-            'T': TShapeCell,
-            'stair': StairCell
-        }
-        CellClass = cell_types.get(cellType)
-        if CellClass:
-            return CellClass(x, y, z, fracLevel)
-        raise ValueError(f"Unknown cell type: {cellType}")
 
 '''
 Cell class, frac level I left it for future use
@@ -191,6 +179,7 @@ class HandGestureDetector:
             return self.counter
             
         frame = cv2.flip(frame, 1)
+        frame = cv2.resize(frame, (480, 400))
         frameRGB = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         results = self.hands.process(frameRGB)
         
@@ -248,26 +237,31 @@ class HandGestureDetector:
         self.cap.release()
         cv2.destroyAllWindows()
 
-# Reference Sudoku-3D\game3D.py, builder\CMU-15112-\isometric.py by Kui Yang Yang, https://skannai.medium.com/projecting-3d-points-into-a-2d-screen-58db65609f24 and modified it to fit my needs
+# Reference Sudoku-3D\game3D.py, builder\CMU-15112-\isometric.py by Kui Yang Yang, 
+# concept: https://skannai.medium.com/projecting-3d-points-into-a-2d-screen-58db65609f24 and modified it to fit my needs
+# https://github.com/tcabezon/15112-hnx.py.git -> hnXfunction.py (line 74, twoDToIsometric(app,points), take the concept of proj 3d pts & but not using numpy, but not using cuz 3d rotation is different)
+# Formula from below: Taking Y-axis rotation x X-axis rotation
+# https://www.quora.com/How-do-you-convert-3D-coordinates-x-y-z-to-2D-coordinates-x-y
+# https://en.wikipedia.org/wiki/Rotation_matrix#General_3D_rotations (Basic 3d rotation -> General 3d rotation)
+# At the end, use 3d matrix rotation to rotate the 3d points, then project to 2d screen
 class Projection3D:
     def __init__(self):
         pass
 
+    # basic projection, isometric view starts from default rotX, rotY
     def basicProj(self, app, x, y, z, rotationY,rotationX):
-        '''
-        Do Y-axis rotation first, then X-axis rotation
-        scale and translate to screen coordinates
-        '''
+        # Do Y-axis rotation then X-axis rotation R=R(X)R(Y)
+        # scale and translate to screen coordinates
+        
         rotX = x * math.cos(rotationY) - y * math.sin(rotationY)
         rotY = x * math.sin(rotationY) + y * math.cos(rotationY)
         
         finalY = rotY * math.cos(rotationX) - z * math.sin(rotationX)
-        finalZ = rotY * math.sin(rotationX) + z * math.cos(rotationX)
         
-        screenX = app.boardLeft + app.boardWidth/2 + rotX * app.cellSize * app.scale
+        screenX = app.boardLeft + app.boardWidth*(2/3) + rotX * app.cellSize * app.scale
         screenY = app.boardTop + app.boardHeight/2 + finalY * app.cellSize * app.scale
         
-        return (screenX, screenY, finalZ)
+        return (screenX, screenY)
 
 class Draw:
     def __init__(self):
@@ -334,13 +328,14 @@ class Draw:
         
         # Generate updated faces after movement
         allFaces = []
-        for i, shift in enumerate(posList):
+        offset = 0
+        for shift in posList:
             # For each cube, add its faces with updated indices
-            offset = i * len(CUBE_POINTS)  # offset is 8 for each subsequent cube
             for face in CUBE_FACES:
                 # Add the offset to each point index in the face
                 new_face = [idx + offset for idx in face]
                 allFaces.append(new_face)
+            offset += len(CUBE_POINTS)  # offset is 8 for each subsequent cube
         
         return allPts, allFaces
 
@@ -375,12 +370,14 @@ class Draw:
         old_to_new_idx = dict()
         
         # Process points
-        for i, point in enumerate(allPts):
+        i = 0
+        for point in allPts:
             point_tuple = tuple(point)
             if point_tuple not in point_map:
                 point_map[point_tuple] = len(cleaned_points)
                 cleaned_points.append(point)
             old_to_new_idx[i] = point_map[point_tuple]
+            i += 1
         
         # Clean faces and update indices
         face_centers = set()
@@ -400,16 +397,13 @@ class Draw:
     '''
     get reference from wikipedia: https://en.wikipedia.org/wiki/Subdivision_surface
     https://rosettacode.org/wiki/Catmull%E2%80%93Clark_subdivision_surface
-    from line 331 to 569 copied and modified to this python file
+    from line 331 to 569, from getEdgeFace to getOutput in this file are mostly copied and also modified to this python file
     '''
     def getEdgeFaces(self, inputPoints, inputFaces):
         """
-        
         Get list of edges and the one or two adjacent faces in a list.
         also get center point of edge
-        
         Each edge would be [pointnum_1, pointnum_2, facenum_1, facenum_2, center]
-        
         """
         
         # will have [pointnum_1, pointnum_2, facenum]
@@ -701,22 +695,35 @@ class Draw:
         return output_points, output_faces
 
 def drawCell(app, posList, isConfirmed):
-    output_points, output_faces = app.draw.getOutput(posList, app.subdLvl)
+    allpts, allfaces = app.draw.getOutput(posList, app.subdLvl)
     # First project all points
     projectedpts = []
-    for point in output_points:
+    for point in allpts:
         projectedpts.append(app.projection.basicProj(app, point[0], point[1], point[2], app.rotationY, app.rotationX))
 
     # Draw the connecting lines for each face
-    for face in output_faces:
+    for face in allfaces:
         # Connect each point in the face to the next point
-        for i in range(len(face)):
-            # Get current point and next point (wrapping around to first point)
-            pt1 = projectedpts[face[i]]
-            pt2 = projectedpts[face[(i + 1) % len(face)]]
+        # # there are 4ptsin a face [p1,p2,p3,p4]
+        # for i in range(len(face)):
+        #     # Get current point and next point (wrapping around to first point)
+        #     pt1 = projectedpts[face[i]]
+        #     pt2 = projectedpts[face[(i + 1) % len(face)]]
             
-            # Draw line between the points
-            drawLine(pt1[0], pt1[1], pt2[0], pt2[1], fill='grey' if isConfirmed else 'blue')
+        #     # Draw line between the points
+        # drawLine(pt1[0], pt1[1], pt2[0], pt2[1], fill='grey' if isConfirmed else 'blue')
+        # drawLine(pt1[0], pt1[1], pt2[0], pt2[1], fill='grey' if isConfirmed else 'blue')
+        
+        pt1 = projectedpts[face[0]]
+        pt2 = projectedpts[face[1]]
+        pt3 = projectedpts[face[2]]
+        pt4 = projectedpts[face[3]]
+        
+        # drawLine(pt1[0], pt1[1], pt2[0], pt2[1], fill='grey' if isConfirmed else 'blue')
+        # drawLine(pt2[0], pt2[1], pt3[0], pt3[1], fill='grey' if isConfirmed else 'blue')
+        # drawLine(pt3[0], pt3[1], pt4[0], pt4[1], fill='grey' if isConfirmed else 'blue')
+        # drawLine(pt4[0], pt4[1], pt1[0], pt1[1], fill='grey' if isConfirmed else 'blue')
+        drawPolygon(pt1[0], pt1[1], pt2[0], pt2[1], pt3[0], pt3[1], pt4[0], pt4[1],pt1[0], pt1[1], fill = "white", border ='grey' if isConfirmed else 'blue',borderWidth =1)
 
     # if not isConfirmed:
     #     # Draw points on top of lines
@@ -735,14 +742,23 @@ def drawGrid(app, posList, isConfirmed):
 
     drawCell(app, posList, isConfirmed)
 
+# Import image, the logic here is using tkinter to open the file dialog and get the file path, 
+# then assign the file path to app.image
+# Cite: 
+# https://academy.cs.cmu.edu/cpcs-docs/images_and_sounds
+# https://www.geeksforgeeks.org/how-to-specify-the-file-path-in-a-tkinter-filedialog/
 def importImage(app):
     root = tk.Tk()
     root.withdraw()
     try:
-        filePaths = filedialog.askopenfilenames(title='Select Image', 
-                                                filetypes=[('Image Files', '*.jpg *.jpeg *.png *.bmp *.gif *.tiff')])
-        if filePaths:
-            app.image = filePaths[0]
+        filetypes = (('text files', '*.jpg *.jpeg *.png *.bmp *.gif *.tiff'), 
+            ('All files', '*.*')) 
+        
+        f = fd.askopenfile(filetypes=filetypes, initialdir="D:/Downloads") 
+        if f:
+            print(f"filePaths:", f.name)
+            app.image = f.name
+            
     except Exception as e:
         print(f"Error importing image: {e}")
     finally:
@@ -764,7 +780,6 @@ def init(app):
     app.currentZ = 0
     
     app.currentPosList = [[app.currentX, app.currentY, app.currentZ]]
-    
     app.posListAll = []
     app.lastValidX = 0
     app.lastValidY = 0
@@ -774,7 +789,7 @@ def init(app):
     app.newSize = 1
     app.angle = 30
     app.fracLevel = 1
-    app.subdLvl = 2
+    app.subdLvl = 1
     
     app.rotationY = math.pi/4 # 45 degree
     app.rotationX = math.pi/6 # 30 degree
@@ -783,9 +798,7 @@ def init(app):
     app.lastMouseY = 0
     app.scale = 1
     
-    # init the cell
-    app.cellType = 'default'
-    app.cellFactory = CellFactory()
+    # init the cell, start with default
     app.cell = Cell(app.currentX, app.currentY, app.currentZ, app.fracLevel)
     app.grid = Grid3D(app.cellSize, app.gridSize)
     
@@ -818,6 +831,7 @@ def onMousePress(app, mouseX, mouseY):
     app.lastMouseY = mouseY
     if (app.frameImgX + app.frameImgSize/2 - app.buttonSize/2 < mouseX < app.frameImgX + app.frameImgSize/2 + app.buttonSize/2 and
         app.height/2 + app.frameImgSize/2 + app.buttonSize/2 < mouseY < app.height/2 + app.frameImgSize/2 + app.buttonSize*2):
+        # app.image = 'C:/Users/huiye/Downloads/—Pngtree—vector forward icon_4184777.png' # for testing
         importImage(app)
 
 def onMouseDrag(app, mouseX, mouseY):
@@ -859,7 +873,7 @@ def onKeyPress(app, key):
                     app.currentZ = 0
                 else:
                     app.currentZ += 1
-                app.cell = app.cellFactory.createCell(app.cellType, app.currentX, app.currentY, app.currentZ, app.fracLevel)
+                app.cell = Cell(app.currentX, app.currentY, app.currentZ, app.fracLevel)
         
         # Pretty print the board layer by layer
         print("\nUpdated board:")
@@ -928,12 +942,14 @@ def onKeyPress(app, key):
         
     # Change the cell type
     if key in ['1', '2', '3', '4']:
-        if key == '1': app.cellType = 'default'
-        elif key == '2': app.cellType = 'L'
-        elif key == '3': app.cellType = 'T'
-        elif key == '4': app.cellType = 'stair'
-        # Create new cell with updated type
-        app.cell = app.cellFactory.createCell(app.cellType, app.currentX, app.currentY, app.currentZ, app.fracLevel)
+        if key == '1':
+            app.cell = Cell(app.currentX, app.currentY, app.currentZ, app.fracLevel)
+        elif key == '2':
+            app.cell = LShapeCell(app.currentX, app.currentY, app.currentZ, app.fracLevel)
+        elif key == '3':
+            app.cell = TShapeCell(app.currentX, app.currentY, app.currentZ, app.fracLevel)
+        elif key == '4':
+            app.cell = StairCell(app.currentX, app.currentY, app.currentZ, app.fracLevel)
 
 def onStep(app):
     # it will be x & y
@@ -972,22 +988,22 @@ def redrawAll(app):
     drawLabel('• Hold index and middle fingers together to move in Z axis', app.width/2, instructionY + spacing*2,size=12)
     
     # Building controls
-    drawLabel('Building:', app.width/2, instructionY + spacing*3.5, size=15, bold=True)
-    drawLabel('• SPACE: Place cube', app.width/2, instructionY + spacing*4.5,size=12)
-    drawLabel('• 1-4: Change block type (1:Default, 2:L-Shape, 3:T-Shape, 4:Stair)', app.width/2, instructionY + spacing*5.5,size=12)
-    drawLabel('• Q/E: Increase/Decrease cube size', app.width/2, instructionY + spacing*6.5,size=12)
+    drawLabel('Building:', app.width/2, instructionY + spacing*4, size=15, bold=True)
+    drawLabel('• SPACE: Place cube', app.width/2, instructionY + spacing*5,size=12)
+    drawLabel('• 1-4: Change block type (1:Default, 2:L-Shape, 3:T-Shape, 4:Stair)', app.width/2, instructionY + spacing*6,size=12)
+    drawLabel('• Q/E: Increase/Decrease cube size', app.width/2, instructionY + spacing*7,size=12)
     
     # View controls
-    drawLabel('View Controls:', app.width/2, instructionY + spacing*8, size=15, bold=True)
-    drawLabel('• Drag mouse: Rotate view', app.width/2, instructionY + spacing*9,size=12)
-    drawLabel('• Left/Right arrows: Zoom in/out', app.width/2, instructionY + spacing*10,size=12)
-    drawLabel('• Up/Down arrows: Change grid size', app.width/2, instructionY + spacing*11,size=12)
+    drawLabel('View Controls:', app.width/2, instructionY + spacing*9, size=15, bold=True)
+    drawLabel('• Drag mouse: Rotate view', app.width/2, instructionY + spacing*10,size=12)
+    drawLabel('• Left/Right arrows: Zoom in/out', app.width/2, instructionY + spacing*11,size=12)
+    drawLabel('• Up/Down arrows: Change grid size', app.width/2, instructionY + spacing*12,size=12)
     
     # Special features
-    drawLabel('Special Features:', app.width/2, instructionY + spacing*12.5, size=15, bold=True)
-    drawLabel('• S: Toggle subdivision view', app.width/2, instructionY + spacing*13.5,size=12)
-    drawLabel('• [ ]: Adjust fractal level (current: ' + str(app.fracLevel) + ')', app.width/2, instructionY + spacing*14.5,size=12)
-    drawLabel('• R: Reset game', app.width/2, instructionY + spacing*15.5,size=12)
+    drawLabel('Special Features:', app.width/2, instructionY + spacing*14, size=15, bold=True)
+    drawLabel('• d: delete current cell', app.width/2, instructionY + spacing*15,size=12)
+    drawLabel('• [ ]: Adjust subdivide level (current: ' + str(app.fracLevel) + ')', app.width/2, instructionY + spacing*16,size=12)
+    drawLabel('• R: Reset game', app.width/2, instructionY + spacing*17,size=12)
     
     # Current position and hand detection status
     drawLabel(f'Current Position: ({app.currentX}, {app.currentY}, {app.currentZ})', 
