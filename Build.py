@@ -677,8 +677,9 @@ class Draw:
 
     # Final output to draw, pass in to projection to draw
     def getOutput(self, posList, subdLvl):
-        if posList == self.cached_posList:
-            return self.cached_outputPts, self.cached_outputFaces
+        # it's not working, keep running, it's called at redrawAll constantly
+        # if len(posList) == len(self.cached_posList):
+        #     return self.cached_outputPts, self.cached_outputFaces
         
         self.cached_posList = posList
         cleaned_points, cleaned_faces = self.cleanMesh(posList)
@@ -747,6 +748,7 @@ def drawGrid(app, posList, isConfirmed):
 # Cite: 
 # https://academy.cs.cmu.edu/cpcs-docs/images_and_sounds
 # https://www.geeksforgeeks.org/how-to-specify-the-file-path-in-a-tkinter-filedialog/
+# my own project while hack112: https://github.com/hyChia88/hack112.git 
 def importImage(app):
     root = tk.Tk()
     root.withdraw()
@@ -789,7 +791,7 @@ def init(app):
     app.newSize = 1
     app.angle = 30
     app.fracLevel = 1
-    app.subdLvl = 1
+    app.subdLvl = 0
     
     app.rotationY = math.pi/4 # 45 degree
     app.rotationX = math.pi/6 # 30 degree

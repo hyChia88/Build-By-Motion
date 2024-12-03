@@ -142,6 +142,9 @@ def onAppStart(app):
     app.isHandDraw = False
     
     app.hasPrintedPattern = False  # Add a flag to track if the pattern has been printed
+    app.testArr = process_image('testEdge.jpg')['binary_bool']
+    app.testRemapArr = reMap(app.gridSize, app.gridSize, app.testArr)
+    app.isCVDraw = False
 
 def onStep(app):
     handX, handY = app.detector.detectGesture()
@@ -189,7 +192,65 @@ def drawGrid(app):
                 drawRect(cellLeft, cellTop, 
                         app.cellSize, app.cellSize,
                         fill='black')
+# Draw by CV
+def process_image(filename):
+    # Load image directly in grayscale
+    img = cv2.imread(filename, cv2.IMREAD_GRAYSCALE)
+    # Check if image was successfully loaded
+    if img is None:
+        print("Error: Could not load image from", filename)
+        return None
+    
+    # Print image dimensions and data type as additional verification
+    print("Image dimensions:", img.shape)
+    print("Image data type:", img.dtype)
+    # Binarize using threshold
+    _, binary = cv2.threshold(img, 127, 255, cv2.THRESH_BINARY)
+    
+    # Create a true/false numpy array for reference
+    print(img)
+    print(binary)
+    bool_array = img > 20
+    
+    return {
+        'grayscale': img,
+        'binary_uint8': binary,
+        'binary_bool': bool_array
+    }
+    
+def reMap(oriH, oriW, boolArray):
+    newH = oriH
+    newW = oriW
+    scaleH = oriH / newH
+    scaleW = oriW / newW
+    newArray = []
+    print("the remap process:")
+    for i in range(newH):
+        newArray.append([])
+        for j in range(newW):
+            oriX = int(j * scaleW)
+            oriY = int(i * scaleH)
+            newArray[-1].append(boolArray[oriY][oriX])
+    print("the new array:")
+    print(len(newArray))
+    print(len(newArray[0]))
+    print(newArray)
+    return newArray
 
+def onCVDraw(app, boolArray):
+    boolArray = [[False for _ in range(app.gridSize)] for _ in range(app.gridSize)]
+    boolArray[0][0] = True
+    boolArray = [[True, True, True, True, True, True, True, True], [True, True, True, True, True, True, True, True], [True, True, True, True, True, True, False, True], [True, True, True, True, True, False, False, False], [True, True, True, True, True, False, False, False], [True, True, True, True, True, False, False, False], [True, True, True, True, True, True, False, True], [True, True, True, True, True, True, True, True]]
+    # boolArray = [[True for _ in range(app.gridSize)] for _ in range(app.gridSize // 2)] #HARD CODE FOR DEBUG
+    # boolArray.append([False for _ in range(app.gridSize//2)])
+    print(boolArray)
+    resizeGrid = reMap(app.gridSize, app.gridSize, boolArray)
+    for y in range(len(resizeGrid)):
+        for x in range(len(resizeGrid[y])):
+            if boolArray[y][x]:
+                drawRect(app.margin + x * app.cellSize, app.margin + y * app.cellSize, app.cellSize, app.cellSize, fill='black')
+
+# ======================================================
 def drawSubdivision(app, pattern):
     if app.subdivision:
         # Draw background
@@ -219,6 +280,8 @@ def redrawAll(app):
                     row, col = cell
                     app.grid[row][col] = 1
             drawCircle(screenX, screenY, 10, fill='red', opacity=50)
+        if app.isCVDraw:
+            onCVDraw(app, app.testRemapArr)
             
     # Draw mode and level info
     drawLabel(f'Draw Game, mode: {"Drawing" if not app.isShowSubd else "Subdivision"}',
@@ -279,6 +342,9 @@ def onKeyPress(app, key):
     
     elif key == 'h':
         app.isHandDraw = not app.isHandDraw
+    
+    elif key == 'c':
+        app.isCVDraw = not app.isCVDraw
 
 def main():
     runApp(width=1200, height=800)

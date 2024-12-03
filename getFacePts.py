@@ -77,25 +77,26 @@ def clean_mesh(points, faces):
     # Create point mapping dictionary
     point_map = dict()
     cleaned_points = []
-    old_to_new_idx = dict()
+    old2NewIndex = dict()
     
     # Process points
     i = 0
     for point in allPts:
         point_tuple = tuple(point)
         if point_tuple not in point_map:
+            print(point_tuple, len(cleaned_points))
             point_map[point_tuple] = len(cleaned_points)
             cleaned_points.append(point)
-        old_to_new_idx[i] = point_map[point_tuple]
+        old2NewIndex[i] = point_map[point_tuple]
         i += 1
-    
+    print("point_map", point_map)
     # Clean faces and update indices
     face_centers = dict()
     cleaned_faces = []
     
     for face in faces:
         # Update indices
-        new_face = [old_to_new_idx[idx] for idx in face]
+        new_face = [old2NewIndex[idx] for idx in face]
         # Check for duplicate faces
         center = getFacePts([points[idx] for idx in face], [[0,1,2,3]])[0]
         if center not in face_centers:

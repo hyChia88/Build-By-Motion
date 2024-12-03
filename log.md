@@ -148,7 +148,7 @@ This creates a more organic, rounded cube shape while preserving the overall cub
 [/] move still bound in old gridSize
 [/] subdivision success in both single cell or complex cell, in test1.py, but not in Draw.py
 [/] place cell only place the ori curr cell (1x1x1) but not the entire -> at least now type 1 & 2 is working well.
-[ ] Exceed shape limit : resize works -> it is showing the resized cell, but not placing it in the grid (max shapes error). For some readon, the cell is not "snap" tgt
+[/] Exceed shape limit : resize works -> it is showing the resized cell, but not placing it in the grid (max shapes error). For some readon, the cell is not "snap" tgt
 
 # Update: 12/01/2024
 # Update feature:
@@ -164,3 +164,13 @@ This creates a more organic, rounded cube shape while preserving the overall cub
 [ ] MenuPage.py & the other py file not linked together
 [ ] check all the proected pt, if proctedpt count > 2, then remove it, draw a big polygon as surface instead
 
+1. class Cell
+   - several cell type
+2. class Draw
+   - subd getOutPut -> cleanMesh
+   - drawCell -> drawGrid
+3. store posList
+   - "app.currentPosList & app.posList", change the way to draw
+
+Parse the image to get the contour edge map
+https://answers.opencv.org/question/216848/how-to-convert-an-rgb-image-to-boolean-array/
