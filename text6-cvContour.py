@@ -45,17 +45,19 @@ def reMap(newH, newW, boolArray):
     oriW = len(boolArray[0])
     
     # scale
-    scaleH = oriH / newH
-    scaleW = oriW / newW
+    scaleH = oriH // newH
+    scaleW = oriW // newW
     
     newArray = []
     print("the remap process:")
     for i in range(newH):
         newArray.append([])
         for j in range(newW):
-            oriX = int(j * scaleW)
-            oriY = int(i * scaleH)
-            newArray[-1].append(boolArray[oriY][oriX])
+            mapX = int(j * scaleW)
+            mapY = int(i * scaleH)
+            newArray[-1].append(boolArray[mapY][mapX])
+
+    print("old array len", len(boolArray))
     print("the new array:")
     print(len(newArray))
     print(len(newArray[0]))
@@ -63,14 +65,22 @@ def reMap(newH, newW, boolArray):
     return newArray
 
 
-# Example usage
+# Test
+gridSize = 5
 image_path = "testEdge.jpg"
 result = process_image(image_path)
-reMap(8,8,result['binary_bool'])
+print(result['binary_bool'])
+reMap(gridSize,gridSize, result['binary_bool'])
 
 # Visualization
-# cv2.imshow('Grayscale', result['grayscale'])
-# cv2.imshow('Binary (uint8)', result['binary_uint8'])
+cv2.imshow('Grayscale', result['grayscale'])
+cv2.imshow('Binary (uint8)', result['binary_uint8'])
 # cv2.imshow('Binary (bool) - remap', result['binary_bool'])
 cv2.waitKey(0)
 cv2.destroyAllWindows()
+
+'''
+It needs to be in this:
+[[[None, None, None, None, None], [None, None, None, None, None], [None, None, None, None, None], [None, None, None, None, None], [None, None, None, None, None]],
+[[None, None, None, None, None], [None, None, None, None, None], [None, None, None, None, None], [None, None, None, None, None], [None, None, None, None, None]], [[None, None, None, None, None], [None, None, None, None, None], [None, None, None, None, None], [None, None, None, None, None], [None, None, None, None, None]], [[None, None, None, None, None], [None, None, None, None, None], [None, None, None, None, None], [None, None, None, None, None], [None, None, None, None, None]], [[None, None, None, None, None], [None, None, None, None, None], [None, None, None, None, None], [None, None, None, None, None], [None, None, None, None, None]]]
+'''

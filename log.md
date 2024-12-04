@@ -160,9 +160,27 @@ This creates a more organic, rounded cube shape while preserving the overall cub
 <!-- 6. Save after resize grid -->
 
 # Bugs:
-[ ] drawGrid keep calling itself
+
+[ ] **drawGrid keep calling itself
 [ ] MenuPage.py & the other py file not linked together
 [ ] check all the proected pt, if proctedpt count > 2, then remove it, draw a big polygon as surface instead
+[ ] after remove, can't place cell in the grid
+
+[ ] **Even pattern is not None, details:
+ImageCell pattern is not None
+[[[True, True, True, True, True], [True, True, True, True, True], [True, True, True, False, False], [True, True, True, False, False], [True, True, True, True, True]]]
+path:
+drawGrid-> cell.getPlacementPos-> cell.getPattern() -> self.process_image()...
+test array:
+1
+5
+[[[True, True, True, True, True], [True, True, True, True, True], [True, True, True, False, False], [True, True, True, False, False], [True, True, True, True, True]]]
+ImageCell pattern is not None
+[[[True, True, True, True, True], [True, True, True, True, True], [True, True, True, False, False], [True, True, True, False, False], [True, True, True, True, True]]]
+getPlacementPos success, cellPosList:
+[]
+
+from [filename] import *
 
 1. class Cell
    - several cell type

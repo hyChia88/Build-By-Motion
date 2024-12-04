@@ -33,12 +33,15 @@ class Grid3D:
                 for pos in positionList:
                     # check if index within the bound/grid size
                     if not (0 <= pos[0] < self.gridSize and
-                           0 <= pos[1] < self.gridSize and
-                           0 <= pos[2] < self.gridSize):
+                            0 <= pos[1] < self.gridSize and
+                            0 <= pos[2] < self.gridSize):
+                        print("pos is out of bound")
                         return False
                     # Then check if position is occupied
                     if self.board[pos[2]][pos[1]][pos[0]] is not None:
+                        print("pos is occupied")
                         return False
+            print("pos is valid")
             return True
         return False
     
@@ -64,15 +67,15 @@ class Grid3D:
                 return self.board[pos[2]][pos[1]][pos[0]]
         return None
 
-    def removeCell(self, cell):
+    def removeCell(self, app, cell):
         if (0 <= cell.x < self.gridSize and 
             0 <= cell.y < self.gridSize and 
             0 <= cell.z < self.gridSize):
             cell = self.getCell(cell)
             if cell is not None:
-                positionList = cell.getPlacementPos()
-                for pos in positionList:
-                    self.board[pos[2]][pos[1]][pos[0]] = None
+                for pos in app.posListAll:
+                    app.posListAll.remove(pos)
+                    app.currentZ += 1
                 return True
         return False
 
@@ -95,15 +98,15 @@ class Cell:
     
     def __repr__(self):
         return f"Cell({self.x}, {self.y}, {self.z}, {self.size})"
-        
+
     def fracCell(self):
         self.x = self.x *2
         self.y = self.y *2
         self.z = self.z *2
-        
+
     def getPattern(self):
         return self.pattern
-    
+
     def isResizable(self):
         return self.resizable
     
@@ -117,19 +120,25 @@ class Cell:
                             for _ in range(self.size)]
             return True
         return False
-
-    '''return a list of (x,y,z), get the exact pattern pos of cell, send to board and make it not None (occupied)'''
+    
     def getPlacementPos(self):
         cellPosList = []
         # get the exact pattern pos of cell, send to board and make it not None (occupied)
-        pattern = self.getPattern()
-        for x in range(len(pattern)):
-            for y in range(len(pattern[x])):
-                for z in range(len(pattern[x][y])):
-                    if pattern[x][y][z] is True:
-                        pos = [self.x+x, self.y+y, self.z+z]
-                        cellPosList.append(pos)
-        return cellPosList
+        if self.pattern is not None:
+            pattern = self.getPattern()
+            for x in range(len(pattern)):
+                for y in range(len(pattern[x])):
+                    for z in range(len(pattern[x][y])):
+                        if pattern[x][y][z]:
+                            pos = [self.x+x, self.y+y, self.z+z]
+                            print(pos)
+                            cellPosList.append(pos)
+            print("getPlacementPos success, cellPosList:")
+            print(cellPosList)
+            return cellPosList
+        else:
+            print("pattern is None")
+            return None
     
 '''
 Various types of cells, inherit from Cell class
@@ -145,12 +154,6 @@ class TShapeCell(Cell):
         super().__init__(x, y, z, fracLevel)
         self.resizable = False
         self.pattern = [[[True, False, False], [True, True, True], [True, False, False]]]
-        
-class LineCell(Cell):
-    def __init__(self, x, y, z, fracLevel):
-        super().__init__(x, y, z, fracLevel)
-        self.resizable = False
-        self.pattern = [[[True, True, True]]]
 
 class StairCell(Cell):
     def __init__(self, x, y, z, fracLevel=1):
@@ -159,6 +162,86 @@ class StairCell(Cell):
         self.pattern = [[[True, True], [True, False]],
                         [[True, True], [False, False]],
                         [[True, False], [False, False]]]
+
+class ImageCell(Cell):
+    def __init__(self, x, y, z, fracLevel):
+        super().__init__(x, y, z, fracLevel)
+        self.resizable = False
+
+        gridSize = 4 #Hard code for now
+        # Generating 3dlist from Img
+        image_path = "testEdge.jpg" #Hard code for now
+        result = self.process_image(image_path)
+        newArr = self.reMap(gridSize, gridSize, result['binary_bool'])
+        
+        self.pattern = newArr
+        if self.pattern is not None:
+            print("pattern is not None")
+            print(self.pattern)
+        # Hard code for debug:
+        # self.pattern = [[[True, True, True, True, True],
+        #                  [True, True, True, True, True],
+        #                  [True, True, True, False, False],
+        #                  [True, True, True, False, False],
+        #                  [True, True, True, True, True]]]
+
+    def getPattern(self):
+        super().getPattern()
+        gridSize = 5 #Hard code for now
+        # Generating 3dlist from Img
+        image_path = "testEdge.jpg" #Hard code for now
+        result = self.process_image(image_path)
+        newArr = self.reMap(gridSize, gridSize, result['binary_bool'])
+        
+        self.pattern = newArr
+        if self.pattern is not None:
+            print("ImageCell pattern is not None")
+            print(self.pattern)
+        return self.pattern
+
+    def process_image(self,filename):
+        # Load image directly in grayscale
+        img = cv2.imread(filename, cv2.IMREAD_GRAYSCALE)
+        # Check if image was successfully loaded
+        if img is None:
+            print("Error: cant load image" , filename)
+
+        # Binarize using threshold
+        _, binary = cv2.threshold(img, 127, 255, cv2.THRESH_BINARY)
+        
+        # Create a true/false numpy array for reference
+        print(img)
+        print(binary)
+        bool_array = img > 20
+        
+        return {
+            'grayscale': img,
+            'binary_uint8': binary,
+            'binary_bool': bool_array
+        }
+
+    def reMap(self,newH, newW, boolArray):
+        oriH = len(boolArray)
+        oriW = len(boolArray[0])
+        
+        # scale
+        scaleH = oriH / newH
+        scaleW = oriW / newW
+        
+        newArray = []
+        print("the remap process:")
+        for i in range(newH):
+            newArray.append([])
+            for j in range(newW):
+                oriX = int(j * scaleW)
+                oriY = int(i * scaleH)
+                newArray[-1].append(boolArray[oriY][oriX])
+        newArray = [newArray] # make 2d to 3d
+        print("test array:")
+        print(len(newArray))
+        print(len(newArray[0]))
+        print(newArray)
+        return newArray
 
 # Mainly reference from https://youtu.be/RRBXVu5UE-U?si=FTBWxNPHmmu-KmW6
 class HandGestureDetector:
@@ -857,10 +940,9 @@ def onKeyPress(app, key):
     # Cube related functions
     if key == 'space':
         # Debug prints to see what's happening
-        print("Current app.cell:", app.cell)
-        print("Cell pattern:", app.cell.pattern)
-        print("Cell positions:", app.cell.getPlacementPos())
-        
+        print("Placing cell!")
+        print("Current app.cell:", app.cell, " pattern:", app.cell.pattern, " Cell positions:", app.cell.getPlacementPos())
+
         if (app.grid.isPosValid(app.cell) and
             app.grid.getCell(app.cell) is None):
             app.posListAll.extend(app.cell.getPlacementPos())
@@ -889,8 +971,8 @@ def onKeyPress(app, key):
         currPos = app.cell.getPlacementPos()
         for pos in currPos:
             if pos in app.posListAll:
-                app.posListAll.remove(pos)
-            # app.grid.removeCell(app.cell)
+                # app.posListAll.remove(pos)
+                app.grid.removeCell(app, app.cell)
             print("removed cube at:", app.cell.getPlacementPos())
         else:
             print("cube not found at:", app.cell.getPlacementPos())
@@ -943,7 +1025,7 @@ def onKeyPress(app, key):
         app.scale += 0.1
         
     # Change the cell type
-    if key in ['1', '2', '3', '4']:
+    if key in ['1', '2', '3', '4','x','X']:
         if key == '1':
             app.cell = Cell(app.currentX, app.currentY, app.currentZ, app.fracLevel)
         elif key == '2':
@@ -952,6 +1034,9 @@ def onKeyPress(app, key):
             app.cell = TShapeCell(app.currentX, app.currentY, app.currentZ, app.fracLevel)
         elif key == '4':
             app.cell = StairCell(app.currentX, app.currentY, app.currentZ, app.fracLevel)
+        elif key == 'x' or 'X':
+            print('imageCell try!')
+            app.cell = ImageCell(app.currentX, app.currentY, app.currentZ, app.fracLevel)
 
 def onStep(app):
     # it will be x & y
