@@ -169,34 +169,23 @@ class ImageCell(Cell):
         super().__init__(x, y, z, fracLevel, app)
         self.resizable = False
 
-        # Generating 3dlist from Img
-        image_path = "testEdge.jpg" #Hard code for now
-        result = self.process_image(image_path)
-        newArr = self.reMap(app.gridSize, app.gridSize, result['binary_bool'])
-        
-        self.pattern = newArr
-        if self.pattern is not None:
-            print("pattern is not None")
-            print(self.pattern)
-        # Hard code for debug:
-        # self.pattern = [[[True, True, True, True, True],
-        #                  [True, True, True, True, True],
-        #                  [True, True, True, False, False],
-        #                  [True, True, True, False, False],
-        #                  [True, True, True, True, True]]]
-
-    # def getPattern(self,app):
-    #     super().getPattern()
-    #     # Generating 3dlist from Img
-    #     image_path = "testEdge.jpg" #Hard code for now
-    #     result = self.process_image(image_path)
-    #     newArr = self.reMap(app.gridSize, app.gridSize, result['binary_bool'])
-        
-    #     self.pattern = newArr
-    #     if self.pattern is not None:
-    #         print("ImageCell pattern is not None")
-    #         print(self.pattern)
-    #     return self.pattern
+        if app.image is not None:
+            # Generating 3dlist from Img
+            image_path = app.image #Hard code for now
+            result = self.process_image(image_path)
+            newArr = self.reMap(app.gridSize, app.gridSize, result['binary_bool'])
+            
+            self.pattern = newArr
+            if self.pattern is not None:
+                print("pattern is not None")
+                print(self.pattern)
+        else:
+            # Default Image Cell
+            self.pattern = [[[True, True, False, True, True],
+                            [False, True, False, True, False],
+                            [False, False, True, False, False],
+                            [False, True, False, True, False],
+                            [True, True, False, True, True]]]
 
     def process_image(self,filename):
         # Load image directly in grayscale
@@ -830,29 +819,6 @@ def drawGrid(app, posList, isConfirmed):
 
     drawCell(app, posList, isConfirmed)
 
-# Import image, the logic here is using tkinter to open the file dialog and get the file path, 
-# then assign the file path to app.image
-# Cite: 
-# https://academy.cs.cmu.edu/cpcs-docs/images_and_sounds
-# https://www.geeksforgeeks.org/how-to-specify-the-file-path-in-a-tkinter-filedialog/
-# my own project while hack112: https://github.com/hyChia88/hack112.git 
-def importImage(app):
-    root = tk.Tk()
-    root.withdraw()
-    try:
-        filetypes = (('text files', '*.jpg *.jpeg *.png *.bmp *.gif *.tiff'), 
-            ('All files', '*.*')) 
-        
-        f = fd.askopenfile(filetypes=filetypes, initialdir="D:/Downloads") 
-        if f:
-            print(f"filePaths:", f.name)
-            app.image = f.name
-            
-    except Exception as e:
-        print(f"Error importing image: {e}")
-    finally:
-        root.destroy()
-
 def init(app):
     app.projection = Projection3D()
     app.draw = Draw()
@@ -900,6 +866,7 @@ def init(app):
     app.showSubd = False
     
     # import the image
+    app.showImage = False
     app.image = None
     app.frameImgX = 80
     app.frameImgSize = 250
@@ -922,10 +889,28 @@ def onMousePress(app, mouseX, mouseY):
     app.dragging = True
     app.lastMouseX = mouseX
     app.lastMouseY = mouseY
-    if (app.frameImgX + app.frameImgSize/2 - app.buttonSize/2 < mouseX < app.frameImgX + app.frameImgSize/2 + app.buttonSize/2 and
-        app.height/2 + app.frameImgSize/2 + app.buttonSize/2 < mouseY < app.height/2 + app.frameImgSize/2 + app.buttonSize*2):
-        # app.image = 'C:/Users/huiye/Downloads/—Pngtree—vector forward icon_4184777.png' # for testing
-        importImage(app)
+    
+    # Import button
+    if (app.frameImgX + app.frameImgSize/2 - app.buttonSize - app.buttonSize/2 < mouseX < app.frameImgX + app.frameImgSize/2 - app.buttonSize + app.buttonSize/2 and
+        app.height/2 + app.frameImgSize/2 + app.buttonSize - app.buttonSize/2 < mouseY < app.height/2 + app.height/2 + app.frameImgSize/2 + app.buttonSize + app.buttonSize/2):
+        print("Import image clicked!")
+        try:
+            # Try to load the image using CMU Graphics
+            app.image = "imageCell.jpg"
+            app.showImage = True
+        except:
+            print("Error: imageCell.jpg not found!")
+            app.hint = "Error: imageCell.jpg not found!"
+            app.showImage = False
+            app.image = None
+            return
+
+    # Remove import button
+    if (app.frameImgX + app.frameImgSize/2 + app.buttonSize - app.buttonSize/2 < mouseX < app.frameImgX + app.frameImgSize/2 + app.buttonSize + app.buttonSize/2 and
+        app.height/2 + app.frameImgSize/2 + app.buttonSize - app.buttonSize/2 < mouseY < app.height/2 + app.frameImgSize/2 + app.buttonSize + app.buttonSize/2):
+        print("Image remove clicked!")
+        app.showImage = False
+        app.image = None #set as None, image cell pattern goes to default
 
 def onMouseDrag(app, mouseX, mouseY):
     if app.dragging:
@@ -1115,10 +1100,14 @@ def redrawAll(app):
                  app.width/2, app.height - spacing,size=12, fill='red')
     
     # import the image 
-    if app.image is not None:
-        drawImage(app.image, app.frameImgX, app.height/2-app.frameImgSize/2, width=app.frameImgSize, height=app.frameImgSize)
+    if app.image and app.showImage:
+        drawImage("imageCell.jpg", app.frameImgX, app.height/2-app.frameImgSize/2, width=app.frameImgSize, height=app.frameImgSize)
+    else:
+        drawLabel("No image file! Import imageCell.jpg", app.frameImgX+app.frameImgSize/2, app.height/2-app.frameImgSize/2 + app.frameImgSize/2, align = "center")
+        
     drawRect(app.frameImgX, app.height/2-app.frameImgSize/2, app.frameImgSize, app.frameImgSize, fill=None, border='black')
-    drawImage('importIcon.png', app.frameImgX + app.frameImgSize/2 - app.buttonSize/2, app.height/2 + app.frameImgSize/2 + app.buttonSize, width=app.buttonSize, height=app.buttonSize)
+    drawImage('importIcon.png', app.frameImgX + app.frameImgSize/2 - app.buttonSize, app.height/2 + app.frameImgSize/2 + app.buttonSize, width=app.buttonSize, height=app.buttonSize, align = "center")
+    drawImage('removeIcon.png', app.frameImgX + app.frameImgSize/2 + app.buttonSize, app.height/2 + app.frameImgSize/2 + app.buttonSize, width=app.buttonSize, height=app.buttonSize, align = "center")
 
 def build():
     print("build start!")

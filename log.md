@@ -171,9 +171,6 @@ This creates a more organic, rounded cube shape while preserving the overall cub
 path:
 drawGrid-> cell.getPlacementPos-> cell.getPattern() -> self.process_image()...
 test array:
-1
-5
-[[[True, True, True, True, True], [True, True, True, True, True], [True, True, True, False, False], [True, True, True, False, False], [True, True, True, True, True]]]
 ImageCell pattern is not None
 [[[True, True, True, True, True], [True, True, True, True, True], [True, True, True, False, False], [True, True, True, False, False], [True, True, True, True, True]]]
 getPlacementPos success, cellPosList:
