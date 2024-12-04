@@ -346,7 +346,8 @@ def onKeyPress(app, key):
     elif key == 'c':
         app.isCVDraw = not app.isCVDraw
 
-def main():
-    runApp(width=1200, height=800)
-
-main()
+def draw():
+    print("start draw!")
+    runApp(width=1200, height=750)
+    
+# draw()

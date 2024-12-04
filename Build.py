@@ -8,8 +8,6 @@ import mediapipe as mp
 import tkinter as tk
 from tkinter import filedialog as fd
 
-from getFacePts import clean_mesh
-
 # Take reference from Week7 assignment tetris3D
 class Grid3D:
     def __init__(self, cellSize, gridSize):
@@ -51,6 +49,10 @@ class Grid3D:
             # the order of x,y,z is different from the order of the board
             positionList = cell.getPlacementPos()
             for pos in positionList:
+                if not (0 <= pos[0] < self.gridSize and 
+                        0 <= pos[1] < self.gridSize and 
+                        0 <= pos[2] < self.gridSize):
+                    return None
                 self.board[pos[2]][pos[1]][pos[0]] = cell
             return True
         return False
@@ -83,7 +85,7 @@ class Grid3D:
 Cell class, frac level I left it for future use
 '''
 class Cell:
-    def __init__(self, x, y, z, fracLevel):
+    def __init__(self, x, y, z, fracLevel, app):
         self.fracLevel = fracLevel
         #  x,y,z here is position
         self.x = x
@@ -131,10 +133,9 @@ class Cell:
                     for z in range(len(pattern[x][y])):
                         if pattern[x][y][z]:
                             pos = [self.x+x, self.y+y, self.z+z]
-                            print(pos)
                             cellPosList.append(pos)
-            print("getPlacementPos success, cellPosList:")
-            print(cellPosList)
+            # print("getPlacementPos success, cellPosList:")
+            # print(cellPosList)
             return cellPosList
         else:
             print("pattern is None")
@@ -144,35 +145,34 @@ class Cell:
 Various types of cells, inherit from Cell class
 '''
 class LShapeCell(Cell):
-    def __init__(self, x, y, z, fracLevel):
-        super().__init__(x, y, z, fracLevel)
+    def __init__(self, x, y, z, fracLevel, app):
+        super().__init__(x, y, z, fracLevel, app)
         self.resizable = False
         self.pattern = [[[True, False], [True, True]]] # Use False to represent None, so that at getPlacementPos, it will be ignored
 
 class TShapeCell(Cell):
-    def __init__(self, x, y, z, fracLevel):
-        super().__init__(x, y, z, fracLevel)
+    def __init__(self, x, y, z, fracLevel, app):
+        super().__init__(x, y, z, fracLevel, app)
         self.resizable = False
         self.pattern = [[[True, False, False], [True, True, True], [True, False, False]]]
 
 class StairCell(Cell):
-    def __init__(self, x, y, z, fracLevel=1):
-        super().__init__(x, y, z, fracLevel)
+    def __init__(self, x, y, z, fracLevel, app):
+        super().__init__(x, y, z, fracLevel, app)
         self.resizable = False
         self.pattern = [[[True, True], [True, False]],
                         [[True, True], [False, False]],
                         [[True, False], [False, False]]]
 
 class ImageCell(Cell):
-    def __init__(self, x, y, z, fracLevel):
-        super().__init__(x, y, z, fracLevel)
+    def __init__(self, x, y, z, fracLevel, app):
+        super().__init__(x, y, z, fracLevel, app)
         self.resizable = False
 
-        gridSize = 4 #Hard code for now
         # Generating 3dlist from Img
         image_path = "testEdge.jpg" #Hard code for now
         result = self.process_image(image_path)
-        newArr = self.reMap(gridSize, gridSize, result['binary_bool'])
+        newArr = self.reMap(app.gridSize, app.gridSize, result['binary_bool'])
         
         self.pattern = newArr
         if self.pattern is not None:
@@ -185,19 +185,18 @@ class ImageCell(Cell):
         #                  [True, True, True, False, False],
         #                  [True, True, True, True, True]]]
 
-    def getPattern(self):
-        super().getPattern()
-        gridSize = 5 #Hard code for now
-        # Generating 3dlist from Img
-        image_path = "testEdge.jpg" #Hard code for now
-        result = self.process_image(image_path)
-        newArr = self.reMap(gridSize, gridSize, result['binary_bool'])
+    # def getPattern(self,app):
+    #     super().getPattern()
+    #     # Generating 3dlist from Img
+    #     image_path = "testEdge.jpg" #Hard code for now
+    #     result = self.process_image(image_path)
+    #     newArr = self.reMap(app.gridSize, app.gridSize, result['binary_bool'])
         
-        self.pattern = newArr
-        if self.pattern is not None:
-            print("ImageCell pattern is not None")
-            print(self.pattern)
-        return self.pattern
+    #     self.pattern = newArr
+    #     if self.pattern is not None:
+    #         print("ImageCell pattern is not None")
+    #         print(self.pattern)
+    #     return self.pattern
 
     def process_image(self,filename):
         # Load image directly in grayscale
@@ -251,6 +250,7 @@ class HandGestureDetector:
         self.prevX = None
         self.prevY = None
         self.prevZ = None
+        self.cacheX = None
         self.moveInZ = False
         self.counter = 0
         self.swipeThreshold = 0.05
@@ -289,7 +289,8 @@ class HandGestureDetector:
                     cv2.circle(frame,(midIndexX, midIndexY), 10, (0, 255, 0), -1)
                 else:
                     self.moveInZ = False
-
+                    
+            self.cacheX = self.prevX
             self.prevX = currentHandX
             self.prevY = currentHandY
         else:
@@ -759,13 +760,15 @@ class Draw:
         return new_points, new_faces
 
     # Final output to draw, pass in to projection to draw
-    def getOutput(self, posList, subdLvl):
-        # it's not working, keep running, it's called at redrawAll constantly
-        # if len(posList) == len(self.cached_posList):
+    def getOutput(self, posList, subdLvl, app):
+        # if not (app.handCountX or app.handCountY):
+        #     # print("pause here")
         #     return self.cached_outputPts, self.cached_outputFaces
-        
+        # else:
+        # print("run getOutput")
         self.cached_posList = posList
         cleaned_points, cleaned_faces = self.cleanMesh(posList)
+
         # print(f"cleaned_points ({len(cleaned_points)}):", cleaned_points)
         # print(f"cleaned_faces ({len(cleaned_faces)}):", cleaned_faces)
         
@@ -775,11 +778,12 @@ class Draw:
         for i in range(iterations):
             output_points, output_faces = self.cmc_subdiv(output_points, output_faces)
 
+        # save the cache
         self.cached_outputPts, self.cached_outputFaces = output_points, output_faces
         return output_points, output_faces
 
 def drawCell(app, posList, isConfirmed):
-    allpts, allfaces = app.draw.getOutput(posList, app.subdLvl)
+    allpts, allfaces = app.draw.getOutput(posList, app.subdLvl,app)
     # First project all points
     projectedpts = []
     for point in allpts:
@@ -803,10 +807,11 @@ def drawCell(app, posList, isConfirmed):
         pt3 = projectedpts[face[2]]
         pt4 = projectedpts[face[3]]
         
-        # drawLine(pt1[0], pt1[1], pt2[0], pt2[1], fill='grey' if isConfirmed else 'blue')
+        # # drawLine(pt1[0], pt1[1], pt2[0], pt2[1], fill='grey' if isConfirmed else 'blue')
         # drawLine(pt2[0], pt2[1], pt3[0], pt3[1], fill='grey' if isConfirmed else 'blue')
-        # drawLine(pt3[0], pt3[1], pt4[0], pt4[1], fill='grey' if isConfirmed else 'blue')
+        # # drawLine(pt3[0], pt3[1], pt4[0], pt4[1], fill='grey' if isConfirmed else 'blue')
         # drawLine(pt4[0], pt4[1], pt1[0], pt1[1], fill='grey' if isConfirmed else 'blue')
+        
         drawPolygon(pt1[0], pt1[1], pt2[0], pt2[1], pt3[0], pt3[1], pt4[0], pt4[1],pt1[0], pt1[1], fill = "white", border ='grey' if isConfirmed else 'blue',borderWidth =1)
 
     # if not isConfirmed:
@@ -819,7 +824,6 @@ def drawGrid(app, posList, isConfirmed):
     if not isConfirmed:
         app.draw.drawGridPlane(app, app.projection)
 
-                    
     app.cell.x = app.currentX
     app.cell.y = app.currentY
     app.cell.z = app.currentZ
@@ -863,13 +867,13 @@ def init(app):
     app.currentX = 0
     app.currentY = 0
     app.currentZ = 0
-    
+
     app.currentPosList = [[app.currentX, app.currentY, app.currentZ]]
     app.posListAll = []
     app.lastValidX = 0
     app.lastValidY = 0
     app.gridScale = 1
-    app.gridSize = 5
+    app.gridSize = 7
     app.cellSize = 50
     app.newSize = 1
     app.angle = 30
@@ -884,7 +888,7 @@ def init(app):
     app.scale = 1
     
     # init the cell, start with default
-    app.cell = Cell(app.currentX, app.currentY, app.currentZ, app.fracLevel)
+    app.cell = Cell(app.currentX, app.currentY, app.currentZ, app.fracLevel, app)
     app.grid = Grid3D(app.cellSize, app.gridSize)
     
     #hand gesture starting 
@@ -903,8 +907,12 @@ def init(app):
 
     # check if the current cell is valid
     app.isPosValid = app.grid.isPosValid(app.cell)
+    
+    # Draw error hint:
+    app.hint = None
 
 def onAppStart(app):
+    app.setMaxShapeCount(5000)
     init(app)
     
 def onAppStop(app):
@@ -957,7 +965,7 @@ def onKeyPress(app, key):
                     app.currentZ = 0
                 else:
                     app.currentZ += 1
-                app.cell = Cell(app.currentX, app.currentY, app.currentZ, app.fracLevel)
+                app.cell = Cell(app.currentX, app.currentY, app.currentZ, app.fracLevel, app)
         
         # Pretty print the board layer by layer
         print("\nUpdated board:")
@@ -1027,22 +1035,22 @@ def onKeyPress(app, key):
     # Change the cell type
     if key in ['1', '2', '3', '4','x','X']:
         if key == '1':
-            app.cell = Cell(app.currentX, app.currentY, app.currentZ, app.fracLevel)
+            app.cell = Cell(app.currentX, app.currentY, app.currentZ, app.fracLevel, app)
         elif key == '2':
-            app.cell = LShapeCell(app.currentX, app.currentY, app.currentZ, app.fracLevel)
+            app.cell = LShapeCell(app.currentX, app.currentY, app.currentZ, app.fracLevel, app)
         elif key == '3':
-            app.cell = TShapeCell(app.currentX, app.currentY, app.currentZ, app.fracLevel)
+            app.cell = TShapeCell(app.currentX, app.currentY, app.currentZ, app.fracLevel, app)
         elif key == '4':
-            app.cell = StairCell(app.currentX, app.currentY, app.currentZ, app.fracLevel)
+            app.cell = StairCell(app.currentX, app.currentY, app.currentZ, app.fracLevel, app)
         elif key == 'x' or 'X':
             print('imageCell try!')
-            app.cell = ImageCell(app.currentX, app.currentY, app.currentZ, app.fracLevel)
+            app.cell = ImageCell(app.currentX, app.currentY, app.currentZ, app.fracLevel, app)
 
 def onStep(app):
     # it will be x & y
     app.handCountX, app.handCountY, app.handCountZ = app.detector.detectGesture()
     if app.handCountZ:
-        # Use the last valid X/Y positions when moving in Z
+        # Use the last valid X/Y positions when moving Z
         app.currentX = app.lastValidX
         app.currentY = app.lastValidY
         mappedZ = int(app.handCountZ * (app.gridSize))
@@ -1096,6 +1104,9 @@ def redrawAll(app):
     drawLabel(f'Current Position: ({app.currentX}, {app.currentY}, {app.currentZ})', 
              app.width/2, app.height - spacing*2,size=12)
     
+    if app.hint:
+        drawLabel('Hint!', app.width/2, app.height - spacing*3,size=12, fill='red')
+    
     if app.handCountX or app.handCountY:
         drawLabel(f'Hand Position: ({pythonRound(app.handCountX, 2)}, {pythonRound(app.handCountY, 2)})', 
                  app.width/2, app.height - spacing,size=12)
@@ -1109,7 +1120,8 @@ def redrawAll(app):
     drawRect(app.frameImgX, app.height/2-app.frameImgSize/2, app.frameImgSize, app.frameImgSize, fill=None, border='black')
     drawImage('importIcon.png', app.frameImgX + app.frameImgSize/2 - app.buttonSize/2, app.height/2 + app.frameImgSize/2 + app.buttonSize, width=app.buttonSize, height=app.buttonSize)
 
-def main():
-    runApp(width=1200, height=800)
-
-main()
+def build():
+    print("build start!")
+    runApp(width=1200, height=750)
+    
+build()

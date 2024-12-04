@@ -161,14 +161,13 @@ This creates a more organic, rounded cube shape while preserving the overall cub
 
 # Bugs:
 
-[ ] **drawGrid keep calling itself
-[ ] MenuPage.py & the other py file not linked together
+[-] **drawGrid keep calling itself -> cache not working
+[ ] **MenuPage.py & the other py file not linked together
 [ ] check all the proected pt, if proctedpt count > 2, then remove it, draw a big polygon as surface instead
-[ ] after remove, can't place cell in the grid
+[ ] Draw related: how to chang max shape, ways to sort 3d face to draw, ways to see the counts
+[/] after remove, can't place cell in the grid
 
-[ ] **Even pattern is not None, details:
-ImageCell pattern is not None
-[[[True, True, True, True, True], [True, True, True, True, True], [True, True, True, False, False], [True, True, True, False, False], [True, True, True, True, True]]]
+[/] **Even pattern is not None, details:
 path:
 drawGrid-> cell.getPlacementPos-> cell.getPattern() -> self.process_image()...
 test array:
@@ -181,6 +180,10 @@ getPlacementPos success, cellPosList:
 []
 
 from [filename] import *
+
+- Backface culling
+- reduce
+- chang max
 
 1. class Cell
    - several cell type
