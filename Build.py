@@ -26,6 +26,8 @@ class Grid3D:
     # check if the position is valid, return True or False
     def isPosValid(self, cell):
         positionList = cell.getPlacementPos()
+        print("positionList @ isPosValid:")
+        print(positionList)
         if isinstance(cell, Cell):
             # check if the cell size is within the grid size
             if (0 <= len(positionList) <= self.gridSize):
@@ -34,32 +36,32 @@ class Grid3D:
                     if not (0 <= pos[0] < self.gridSize and
                             0 <= pos[1] < self.gridSize and
                             0 <= pos[2] < self.gridSize):
-                        print("pos is out of bound")
+                        print("pos is out of bound @ isPosValid")
                         return False
                     # Then check if position is occupied
                     if self.board[pos[2]][pos[1]][pos[0]] is not None:
-                        print("pos is occupied")
+                        print("pos is occupied @ isPosValid")
                         return False
-            print("pos is valid")
+            print("pos is valid @ isPosValid") # got problem here, pos is not valid
             return True
         return False
     
     # place the cube at the position, return True or False
     def placeCell(self,cell):
+        boardCopy = copy.deepcopy(self.board)
         if self.isPosValid(cell):
-            # the order of x,y,z is different from the order of the board
-            boardCopy = copy.deepcopy(self.board)
             positionList = cell.getPlacementPos()
             print("positionList @ placeCell:")
             print(positionList)
             for pos in positionList:
                 if not (0 <= pos[0] < self.gridSize and 
                         0 <= pos[1] < self.gridSize and 
-                    0 <= pos[2] < self.gridSize):
-                    print("pos is out of bound")
+                        0 <= pos[2] < self.gridSize):
+                    print("pos is out of bound @ placeCell")
                     self.board = boardCopy # place failed, reset the board
                     return False
-                self.board[pos[2]][pos[1]][pos[0]] = cell
+                # self.board[pos[2]][pos[1]][pos[0]] = cell
+            print("placeCell success @ placeCell")
             return True
         return False
     
@@ -852,7 +854,7 @@ def buildInit(app):
     app.currentY = 0
     app.currentZ = 0
 
-    app.currentPosList = [[app.currentX, app.currentY, app.currentZ]]
+    app.currCtrlPos = [[app.currentX, app.currentY, app.currentZ]]
     app.posListAll = []
     app.lastValidX = 0
     app.lastValidY = 0
@@ -955,23 +957,19 @@ def build_onKeyPress(app, key):
     if key == 'space':
         # Debug prints to see what's happening
         print("Placing cell!")
-        print("Current app.cell:", app.cell, " pattern:", app.cell.pattern, " Cell positions:", app.cell.getPlacementPos())
+        print("Cell positions trying to be placed:", app.cell.getPlacementPos())
 
         if (app.grid.isPosValid(app.cell) and
+            app.grid.placeCell(app.cell) and
             app.grid.getCell(app.cell) is None):
             app.posListAll.extend(app.cell.getPlacementPos())
-            # app.posListAll.extend(app.currentPosList)
-            print(f"app.cell.getPlacementPos() ({len(app.cell.getPlacementPos())}):", app.cell.getPlacementPos())
-            print(f"app.currentPosList ({len(app.currentPosList)}):", app.currentPosList)
-            print(f"app.posListAll ({len(app.posListAll)}):", app.posListAll)
-
-            placeable = app.grid.placeCell(app.cell)
-            if placeable:
-                if app.currentZ >= app.gridSize - 1:
-                    app.currentZ = 0
-                else:
-                    app.currentZ += 1
-                app.cell = Cell(app.currentX, app.currentY, app.currentZ, app.fracLevel, app)
+            print("app.posListAll after suc to place cell @ placeCell:")
+            print(app.posListAll)
+            if app.currentZ >= app.gridSize - 1:
+                app.currentZ = 0
+            else:
+                app.currentZ += 1
+            app.cell = Cell(app.currentX, app.currentY, app.currentZ, app.fracLevel, app)
         
         # Pretty print the board layer by layer, for visualize
         # print("\nUpdated board:")
