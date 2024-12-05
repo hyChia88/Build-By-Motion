@@ -131,7 +131,7 @@ def resizeGrid(app, newSize):
     elif newSize > 6:
         newSize = 6
     app.drawDGridSize = newSize
-    app.drawCellSize = (app.height - 2*app.gridLeft) / app.drawDGridSize
+    app.drawCellSize = app.gridActualSize / app.drawDGridSize
     # create a new pattern (2D list) with the new size, reset the grid when resizing
     app.drawDGrid = [[0 for _ in range(newSize)] for _ in range(newSize)]
 
@@ -312,7 +312,7 @@ def draw_onKeyPress(app, key):
             print('No pattern to save')
         else:
             print(app.importPattern)
-            app.drawHint = "Pattern saved!"
+            app.drawHint = "Pattern saved!, Now hit E to export."
     
     elif key == 'e':
         if app.importPattern is not None:

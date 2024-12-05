@@ -17,6 +17,7 @@ def onAppStart(app):
     app.normalFS = 12
     
     # Import the init status of Build and Draw
+    app.posListAll = []
     buildInit(app)
     drawInit(app)
 
@@ -46,6 +47,6 @@ def start_onMousePress(app, mouseX, mouseY):
 ############################################################
 
 def main():
-    runAppWithScreens(initialScreen='draw', width=1200, height=750)
+    runAppWithScreens(initialScreen='start', width=1200, height=750)
 
 main()

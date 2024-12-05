@@ -862,7 +862,7 @@ def buildInit(app):
     app.currentY = 0
     app.currentZ = 0
 
-    app.posListAll = []
+    # app.posListAll = []
     app.lastValidX = 0
     app.lastValidY = 0
     app.gridSize = 4
@@ -1004,13 +1004,13 @@ def build_onKeyPress(app, key):
             app.cell.resize(app.newSize)
 
     # Change the grid size
-    elif key == 'up':
+    elif key == 'o':
         if app.gridSize < 32:
             app.gridSize = app.gridSize + 2
             app.grid = Grid3D(app.cellSize, app.gridSize)
             print(f"gridSize to: {app.gridSize}") 
 
-    elif key == 'down':
+    elif key == 'p':
         if app.gridSize > 1:
             app.gridSize = app.gridSize - 2
             app.grid = Grid3D(app.cellSize, app.gridSize)
@@ -1034,12 +1034,24 @@ def build_onKeyPress(app, key):
             app.subdLvl = 0
         else:
             app.subdLvl -= 1
-        print(f"subdLvl to: {app.subdLvl}")  
-    elif key == 'left':
+        print(f"subdLvl to: {app.subdLvl}")
+          
+    elif key == 'k':
         app.scale -= 0.1
-    elif key == 'right':
+    elif key == 'l':
         app.scale += 0.1
-        
+    
+    elif key == 'up': 
+        app.currentY += 1
+    elif key == 'down':
+        app.currentY -= 1
+    elif key == 'left':
+        app.currentX -= 1
+    elif key == 'right':
+        app.currentX += 1
+    elif key == '/':
+        app.currentZ += 1
+
     # Change the cell type
     if key in ['1', '2', '3', '4','x','X']:
         if key == '1':
@@ -1095,8 +1107,8 @@ def build_redrawAll(app):
     
     # Movement controls
     drawLabel('Controls:', axisX, app.instructionY, size=app.normalFS, bold=True)
-    drawLabel('• Use hand gestures to move the cube in X/Y plane', axisX, app.instructionY + app.spacing,size=app.normalFS)
-    drawLabel('• Hold index and middle fingers together to move in Z axis', axisX, app.instructionY + app.spacing*2,size=app.normalFS)
+    drawLabel('• Use hand gestures or arrow keys to move the cube in X/Y plane', axisX, app.instructionY + app.spacing,size=app.normalFS)
+    drawLabel('• Hold index and middle fingers together or use / key to move in Z axis', axisX, app.instructionY + app.spacing*2,size=app.normalFS)
     
     # Building controls
     drawLabel('Building:', axisX, app.instructionY + app.spacing*4, size=app.normalFS, bold=True)
@@ -1109,7 +1121,7 @@ def build_redrawAll(app):
     drawLabel('Special Features:', axisX, app.instructionY + app.spacing*10, size=app.normalFS, bold=True)
     drawLabel('• d: delete current cell', axisX, app.instructionY + app.spacing*11,size=app.normalFS)
     drawLabel('• [ ]: Adjust subdivide level (current: ' + str(app.subdLvl) + ')', axisX, app.instructionY + app.spacing*12,size=app.normalFS)
-    drawLabel('• R: Reset game', axisX, app.instructionY + app.spacing*13,size=app.normalFS)
+    drawLabel('• R: Reset game; o/p: Change grid size; k/l: Change zoom in/out', axisX, app.instructionY + app.spacing*13,size=app.normalFS)
     drawLabel('• Import/Remove image: Use buttons below', axisX, app.instructionY + app.spacing*14,size=app.normalFS)
     
     # Current position and hand detection status
