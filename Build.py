@@ -1,12 +1,13 @@
 '''
+build Page
 This is the building page that allows the user to build on a grid with blocks (cells)
 '''
 from cmu_graphics import *
 import math
 import cv2
 import mediapipe as mp
-import tkinter as tk
-from tkinter import filedialog as fd
+from Draw import *
+import copy
 
 # Take reference from Week7 assignment tetris3D
 class Grid3D:
@@ -47,12 +48,17 @@ class Grid3D:
     def placeCell(self,cell):
         if self.isPosValid(cell):
             # the order of x,y,z is different from the order of the board
+            boardCopy = copy.deepcopy(self.board)
             positionList = cell.getPlacementPos()
+            print("positionList @ placeCell:")
+            print(positionList)
             for pos in positionList:
                 if not (0 <= pos[0] < self.gridSize and 
                         0 <= pos[1] < self.gridSize and 
-                        0 <= pos[2] < self.gridSize):
-                    return None
+                    0 <= pos[2] < self.gridSize):
+                    print("pos is out of bound")
+                    self.board = boardCopy # place failed, reset the board
+                    return False
                 self.board[pos[2]][pos[1]][pos[0]] = cell
             return True
         return False
@@ -74,11 +80,17 @@ class Grid3D:
             0 <= cell.y < self.gridSize and 
             0 <= cell.z < self.gridSize):
             cell = self.getCell(cell)
-            if cell is not None:
-                for pos in app.posListAll:
-                    app.posListAll.remove(pos)
-                    app.currentZ += 1
+            if cell is not None and cell.getPattern() is not None:
+                posList = cell.getPlacementPos()
+                for pos in posList:
+                    if pos in app.posListAll:
+                        app.posListAll.remove(pos)
+                        app.grid.board[pos[2]][pos[1]][pos[0]] = None
+                        app.currentZ += 1
+                print("removed cube at:", posList)
                 return True
+        else:
+            print("cell is not in the grid")
         return False
 
 '''
@@ -141,6 +153,9 @@ class Cell:
             print("pattern is None")
             return None
     
+    def getImportPattern(self, pattern):
+        self.pattern = pattern
+    
 '''
 Various types of cells, inherit from Cell class
 '''
@@ -160,9 +175,7 @@ class StairCell(Cell):
     def __init__(self, x, y, z, fracLevel, app):
         super().__init__(x, y, z, fracLevel, app)
         self.resizable = False
-        self.pattern = [[[True, True], [True, False]],
-                        [[True, True], [False, False]],
-                        [[True, False], [False, False]]]
+        self.pattern = [[[True, True, True, True], [True, False, False, False], [True, True, True, True], [True, False, False, True]]]
 
 class ImageCell(Cell):
     def __init__(self, x, y, z, fracLevel, app):
@@ -179,6 +192,8 @@ class ImageCell(Cell):
             if self.pattern is not None:
                 print("pattern is not None")
                 print(self.pattern)
+        elif app.importPattern is not None:
+            self.pattern = app.importPattern
         else:
             # Default Image Cell
             self.pattern = [[[True, True, False, True, True],
@@ -230,7 +245,7 @@ class ImageCell(Cell):
         print(len(newArray[0]))
         print(newArray)
         return newArray
-
+    
 # Mainly reference from https://youtu.be/RRBXVu5UE-U?si=FTBWxNPHmmu-KmW6
 class HandGestureDetector:
     def __init__(self):
@@ -819,7 +834,10 @@ def drawGrid(app, posList, isConfirmed):
 
     drawCell(app, posList, isConfirmed)
 
-def init(app):
+def build_onScreenActivate(app):
+    buildInit(app)
+
+def buildInit(app):
     app.projection = Projection3D()
     app.draw = Draw()
     
@@ -839,7 +857,7 @@ def init(app):
     app.lastValidX = 0
     app.lastValidY = 0
     app.gridScale = 1
-    app.gridSize = 7
+    app.gridSize = 4
     app.cellSize = 50
     app.newSize = 1
     app.angle = 30
@@ -874,18 +892,15 @@ def init(app):
 
     # check if the current cell is valid
     app.isPosValid = app.grid.isPosValid(app.cell)
+    app.drawnPattern = None
     
     # Draw error hint:
     app.hint = None
 
-def onAppStart(app):
-    app.setMaxShapeCount(5000)
-    init(app)
-    
 def onAppStop(app):
     app.detector.cleanup()
 
-def onMousePress(app, mouseX, mouseY):
+def build_onMousePress(app, mouseX, mouseY):
     app.dragging = True
     app.lastMouseX = mouseX
     app.lastMouseY = mouseY
@@ -911,8 +926,14 @@ def onMousePress(app, mouseX, mouseY):
         print("Image remove clicked!")
         app.showImage = False
         app.image = None #set as None, image cell pattern goes to default
-
-def onMouseDrag(app, mouseX, mouseY):
+    
+    # Draw button
+    if (app.frameImgX + app.frameImgSize/2 -app.buttonSize/2 < mouseX < app.frameImgX + app.frameImgSize/2 + app.buttonSize/2 and
+        app.height/2 + app.frameImgSize/2 + app.buttonSize*3 - app.buttonSize/2 < mouseY < app.height/2 + app.frameImgSize/2 + app.buttonSize*3 + app.buttonSize/2):
+        print("Draw clicked! Go to draw screen")
+        setActiveScreen('draw')
+    
+def build_onMouseDrag(app, mouseX, mouseY):
     if app.dragging:
         dx = mouseX - app.lastMouseX
         dy = mouseY - app.lastMouseY
@@ -926,10 +947,10 @@ def onMouseDrag(app, mouseX, mouseY):
         app.lastMouseX = mouseX
         app.lastMouseY = mouseY
 
-def onMouseRelease(app, mouseX, mouseY):
+def build_onMouseRelease(app, mouseX, mouseY):
     app.dragging = False
 
-def onKeyPress(app, key):
+def build_onKeyPress(app, key):
     # Cube related functions
     if key == 'space':
         # Debug prints to see what's happening
@@ -952,23 +973,16 @@ def onKeyPress(app, key):
                     app.currentZ += 1
                 app.cell = Cell(app.currentX, app.currentY, app.currentZ, app.fracLevel, app)
         
-        # Pretty print the board layer by layer
-        print("\nUpdated board:")
-        for z in range(len(app.grid.board)):
-            print(f"Layer: {z}:")
-            for y in range(len(app.grid.board[z])):
-                row = [cell is not None for cell in app.grid.board[z][y]]
-                print(''.join(['X' if cell else '.' for cell in row]))
-            
+        # Pretty print the board layer by layer, for visualize
+        # print("\nUpdated board:")
+        # for z in range(len(app.grid.board)):
+        #     print(f"Layer: {z}:")
+        #     for y in range(len(app.grid.board[z])):
+        #         row = [cell is not None for cell in app.grid.board[z][y]]
+        #         print(''.join(['X' if cell else '.' for cell in row]))
+
     elif key == 'd':
-        currPos = app.cell.getPlacementPos()
-        for pos in currPos:
-            if pos in app.posListAll:
-                # app.posListAll.remove(pos)
-                app.grid.removeCell(app, app.cell)
-            print("removed cube at:", app.cell.getPlacementPos())
-        else:
-            print("cube not found at:", app.cell.getPlacementPos())
+        app.grid.removeCell(app, app.cell)
 
     elif key == '6':
         if isinstance(app.cell, Cell) and app.cell.resizable and app.newSize < 3:
@@ -995,7 +1009,7 @@ def onKeyPress(app, key):
             
     # Reset the game
     elif key == 'r':
-        onAppStart(app)
+        build_onScreenActivate(app)
 
     # Show subdivision
     elif key == 's':
@@ -1031,7 +1045,16 @@ def onKeyPress(app, key):
             print('imageCell try!')
             app.cell = ImageCell(app.currentX, app.currentY, app.currentZ, app.fracLevel, app)
 
-def onStep(app):
+    # elif key == 'g':
+    #     print("import pattern:")
+    #     print(app.importPattern)
+    #     if app.importPattern is not None:
+    #         app.cell.getImportPattern(app.importPattern)
+        
+    elif key == "escape":
+        setActiveScreen('start')
+
+def build_onStep(app):
     # it will be x & y
     app.handCountX, app.handCountY, app.handCountZ = app.detector.detectGesture()
     if app.handCountZ:
@@ -1049,7 +1072,7 @@ def onStep(app):
         app.lastValidX = mappedX
         app.lastValidY = mappedY
 
-def redrawAll(app):
+def build_redrawAll(app):
     # title
     drawLabel('Build Game',app.width/2, 20, size=24)
     
@@ -1102,6 +1125,8 @@ def redrawAll(app):
     # import the image 
     if app.image and app.showImage:
         drawImage("imageCell.jpg", app.frameImgX, app.height/2-app.frameImgSize/2, width=app.frameImgSize, height=app.frameImgSize)
+    elif app.importPattern:
+        drawLabel("Drawn Pattern exists", app.frameImgX+app.frameImgSize/2, app.height/2-app.frameImgSize/2 + app.frameImgSize/2, align = "center")
     else:
         drawLabel("No image file! Import imageCell.jpg", app.frameImgX+app.frameImgSize/2, app.height/2-app.frameImgSize/2 + app.frameImgSize/2, align = "center")
         
@@ -1109,8 +1134,4 @@ def redrawAll(app):
     drawImage('importIcon.png', app.frameImgX + app.frameImgSize/2 - app.buttonSize, app.height/2 + app.frameImgSize/2 + app.buttonSize, width=app.buttonSize, height=app.buttonSize, align = "center")
     drawImage('removeIcon.png', app.frameImgX + app.frameImgSize/2 + app.buttonSize, app.height/2 + app.frameImgSize/2 + app.buttonSize, width=app.buttonSize, height=app.buttonSize, align = "center")
 
-def build():
-    print("build start!")
-    runApp(width=1200, height=750)
-    
-build()
+    drawImage('drawIcon.png', app.frameImgX + app.frameImgSize/2, app.height/2 + app.frameImgSize/2 + app.buttonSize*3, width=app.buttonSize, height=app.buttonSize, align = "center")

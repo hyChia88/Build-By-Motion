@@ -160,9 +160,9 @@ This creates a more organic, rounded cube shape while preserving the overall cub
 <!-- 6. Save after resize grid -->
 
 # Bugs:
-
+[ ] Remove still got problem, not removeing the current cell
 [-] **drawGrid keep calling itself -> cache not working
-[ ] **MenuPage.py & the other py file not linked together
+[/] **MenuPage.py & the other py file not linked together
 [ ] check all the proected pt, if proctedpt count > 2, then remove it, draw a big polygon as surface instead
 [ ] Draw related: how to chang max shape, ways to sort 3d face to draw, ways to see the counts
 [/] after remove, can't place cell in the grid
@@ -192,3 +192,30 @@ from [filename] import *
 
 Parse the image to get the contour edge map
 https://answers.opencv.org/question/216848/how-to-convert-an-rgb-image-to-boolean-array/
+
+Media citation:
+<a href="https://www.flaticon.com/free-icons/3d-model" title="3d model icons">3d model icons created by Freepik - Flaticon</a>
+
+4/12/2024 Test log:
+1. Start screen:
+   1. able to start build screen from start screen
+
+2. Build screen:
+   1. able to build pattern
+      - all cell type place & draw [/], remove cell working (but not visualize)
+      - import image & draw & place[/]
+      - move cell working, place cell woking, resize cell [/], 
+      - reset [/], subdivision [/],
+      - 3d view [/], grid zoom & size change [/]
+      - escape working back to start screen [/]
+      - jump to draw screen [/]
+      - able to import pattern from draw screen [/]
+
+3. Draw screen:
+   - draw pattern [/], subdivision (altho its' abit weird) [/],
+   - draw on hand [/]
+   - reset [/]
+   - escape working back to start screen [/]
+
+   - export to build [/]
+
