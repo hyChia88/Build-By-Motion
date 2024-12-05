@@ -26,41 +26,33 @@ class Grid3D:
     # check if the position is valid, return True or False
     def isPosValid(self, cell):
         positionList = cell.getPlacementPos()
-        print("positionList @ isPosValid:")
+        # print("positionList @ isPosValid:")
         print(positionList)
         if isinstance(cell, Cell):
-            # check if the cell size is within the grid size
-            if (0 <= len(positionList) <= self.gridSize):
-                for pos in positionList:
-                    # check if index within the bound/grid size
-                    if not (0 <= pos[0] < self.gridSize and
-                            0 <= pos[1] < self.gridSize and
-                            0 <= pos[2] < self.gridSize):
-                        print("pos is out of bound @ isPosValid")
-                        return False
-                    # Then check if position is occupied
-                    if self.board[pos[2]][pos[1]][pos[0]] is not None:
-                        print("pos is occupied @ isPosValid")
-                        return False
-            print("pos is valid @ isPosValid") # got problem here, pos is not valid
+            for pos in positionList:
+                # Check if index within the bound/grid size
+                if not (0 <= pos[0] < self.gridSize and
+                        0 <= pos[1] < self.gridSize and
+                        0 <= pos[2] < self.gridSize):
+                    # print("pos is out of bound @ isPosValid")
+                    return False
+                # Then check if position is occupied
+                if self.board[pos[2]][pos[1]][pos[0]] is not None:
+                    # print("pos is occupied @ isPosValid")
+                    return False
+            # print("pos is valid @ isPosValid")
             return True
         return False
     
     # place the cube at the position, return True or False
-    def placeCell(self,cell):
+    def placeCell(self, cell):
         boardCopy = copy.deepcopy(self.board)
         if self.isPosValid(cell):
             positionList = cell.getPlacementPos()
             print("positionList @ placeCell:")
             print(positionList)
             for pos in positionList:
-                if not (0 <= pos[0] < self.gridSize and 
-                        0 <= pos[1] < self.gridSize and 
-                        0 <= pos[2] < self.gridSize):
-                    print("pos is out of bound @ placeCell")
-                    self.board = boardCopy # place failed, reset the board
-                    return False
-                # self.board[pos[2]][pos[1]][pos[0]] = cell
+                self.board[pos[2]][pos[1]][pos[0]] = cell
             print("placeCell success @ placeCell")
             return True
         return False
@@ -106,6 +98,7 @@ class Cell:
         self.y = y
         self.z = z
         self.size = 1
+        self.name = "default"
         self.fracLevel = fracLevel
         self.resizable = True
         self.pattern = [[[True for _ in range(self.size)] 
@@ -113,7 +106,7 @@ class Cell:
                             for _ in range(self.size)] # 1x1x1 cube
     
     def __repr__(self):
-        return f"Cell({self.x}, {self.y}, {self.z}, {self.size})"
+        return f"{self.name}@({self.x}, {self.y}, {self.z})"
 
     def fracCell(self):
         self.x = self.x *2
@@ -166,23 +159,27 @@ class LShapeCell(Cell):
         super().__init__(x, y, z, fracLevel, app)
         self.resizable = False
         self.pattern = [[[True, False], [True, True]]] # Use False to represent None, so that at getPlacementPos, it will be ignored
+        self.name = "LShape"
 
 class TShapeCell(Cell):
     def __init__(self, x, y, z, fracLevel, app):
         super().__init__(x, y, z, fracLevel, app)
         self.resizable = False
         self.pattern = [[[True, False, False], [True, True, True], [True, False, False]]]
+        self.name = "TShape"
 
 class StairCell(Cell):
     def __init__(self, x, y, z, fracLevel, app):
         super().__init__(x, y, z, fracLevel, app)
         self.resizable = False
         self.pattern = [[[True, True, True, True], [True, False, False, False], [True, True, True, True], [True, False, False, True]]]
+        self.name = "Stair"
 
 class ImageCell(Cell):
     def __init__(self, x, y, z, fracLevel, app):
         super().__init__(x, y, z, fracLevel, app)
         self.resizable = False
+        self.name = "Image"
 
         if app.image is not None:
             # Generating 3dlist from Img
@@ -789,6 +786,12 @@ class Draw:
         return output_points, output_faces
 
 def drawCell(app, posList, isConfirmed):
+    # Check if the current cell position is valid
+    # if app.grid.isPosValid(app.cell):
+    #     app.drawCurrColor = 'blue'
+    # else:
+    #     app.drawCurrColor = 'red'
+
     allpts, allfaces = app.draw.getOutput(posList, app.subdLvl,app)
     # First project all points
     projectedpts = []
@@ -817,8 +820,11 @@ def drawCell(app, posList, isConfirmed):
         # drawLine(pt2[0], pt2[1], pt3[0], pt3[1], fill='grey' if isConfirmed else 'blue')
         # # drawLine(pt3[0], pt3[1], pt4[0], pt4[1], fill='grey' if isConfirmed else 'blue')
         # drawLine(pt4[0], pt4[1], pt1[0], pt1[1], fill='grey' if isConfirmed else 'blue')
-        
-        drawPolygon(pt1[0], pt1[1], pt2[0], pt2[1], pt3[0], pt3[1], pt4[0], pt4[1],pt1[0], pt1[1], fill = "white", border ='grey' if isConfirmed else 'blue',borderWidth =1)
+
+        if isConfirmed:
+            drawPolygon(pt1[0], pt1[1], pt2[0], pt2[1], pt3[0], pt3[1], pt4[0], pt4[1],pt1[0], pt1[1], fill = "white", border ='grey',borderWidth =1,opacity=40)
+        else:
+            drawPolygon(pt1[0], pt1[1], pt2[0], pt2[1], pt3[0], pt3[1], pt4[0], pt4[1],pt1[0], pt1[1], fill = "white", border ="blue" if app.grid.isPosValid(app.cell) else 'red',borderWidth =1,opacity=40)
 
     # if not isConfirmed:
     #     # Draw points on top of lines
@@ -853,6 +859,7 @@ def buildInit(app):
     app.currentX = 0
     app.currentY = 0
     app.currentZ = 0
+    app.drawCurrColor = 'blue'
 
     app.currCtrlPos = [[app.currentX, app.currentY, app.currentZ]]
     app.posListAll = []
@@ -961,7 +968,7 @@ def build_onKeyPress(app, key):
 
         if (app.grid.isPosValid(app.cell) and
             app.grid.placeCell(app.cell) and
-            app.grid.getCell(app.cell) is None):
+            app.grid.getCell(app.cell)):
             app.posListAll.extend(app.cell.getPlacementPos())
             print("app.posListAll after suc to place cell @ placeCell:")
             print(app.posListAll)
