@@ -2,6 +2,7 @@
 draw page
 This is the drawing page that allows the user to draw on a grid
 '''
+from scipy import spatial
 from cmu_graphics import *
 import cv2
 import mediapipe as mp
@@ -130,7 +131,7 @@ def resizeGrid(app, newSize):
     elif newSize > 6:
         newSize = 6
     app.drawDGridSize = newSize
-    app.drawCellSize = (app.height - 2*app.margin) / app.drawDGridSize
+    app.drawCellSize = (app.height - 2*app.gridLeft) / app.drawDGridSize
     # create a new pattern (2D list) with the new size, reset the grid when resizing
     app.drawDGrid = [[0 for _ in range(newSize)] for _ in range(newSize)]
 
@@ -139,9 +140,12 @@ def draw_onScreenActivate(app):
     
 def drawInit(app):
     # Grid drawing settings
+    app.gridActualSize = 400
     app.drawDGridSize = 4
-    app.margin = 50
-    app.drawCellSize = (min(app.width, app.height) - 2*app.margin) / app.drawDGridSize
+    app.gridLeft = app.width/2 - app.gridActualSize/2
+    app.gridTop = app.height/2 - app.gridActualSize/2
+    app.drawCellSize = app.gridActualSize / app.drawDGridSize
+    app.cellSize = app.gridActualSize / app.drawDGridSize
     app.drawDGrid = [[0 for _ in range(app.drawDGridSize)] for _ in range(app.drawDGridSize)]
     
     # Mode settings
@@ -153,23 +157,22 @@ def drawInit(app):
     
     app.drawDetector = HandGestureDetector()
     app.isHandDraw = False
+    app.drawHint = None
 
 def draw_onStep(app):
     handX, handY = app.drawDetector.detectGesture()
     onHandDraw(app, app.drawDetector, handX, handY)
 
 def getDrawnCell(app, mouseX, mouseY):
-    gridLeft = app.margin
-    gridTop = app.margin
-    gridRight = gridLeft + app.drawDGridSize * app.drawCellSize
-    gridBottom = gridTop + app.drawDGridSize * app.drawCellSize
+    gridRight = app.gridLeft + app.drawDGridSize * app.drawCellSize
+    gridBottom = app.gridTop + app.drawDGridSize * app.drawCellSize
     
-    if not (gridLeft <= mouseX <= gridRight and
-            gridTop <= mouseY <= gridBottom):
+    if not (app.gridLeft <= mouseX <= gridRight and
+            app.gridTop <= mouseY <= gridBottom):
         return None
     
-    col = int((mouseX - app.margin) // app.drawCellSize)
-    row = int((mouseY - app.margin) // app.drawCellSize)
+    col = int((mouseX - app.gridLeft) // app.drawCellSize)
+    row = int((mouseY - app.gridTop) // app.drawCellSize)
     
     if 0 <= row < app.drawDGridSize and 0 <= col < app.drawDGridSize:
         return (row, col)
@@ -178,49 +181,46 @@ def getDrawnCell(app, mouseX, mouseY):
 def drawDGrid(app):
     # Draw background
     drawRect(0, 0, app.width, app.height, fill='white')
-    
+
     # Draw grid lines
     for i in range(app.drawDGridSize + 1):
-        lineX = app.margin + i * app.drawCellSize
-        drawLine(lineX, app.margin, 
-                lineX, app.margin + app.drawDGridSize * app.drawCellSize,
+        lineX = app.gridLeft + i * app.drawCellSize
+        drawLine(lineX, app.gridTop, lineX, app.gridTop + app.drawDGridSize * app.drawCellSize,
                 lineWidth=2)
         
-        lineY = app.margin + i * app.drawCellSize
-        drawLine(app.margin, lineY,
-                app.margin + app.drawDGridSize * app.drawCellSize, lineY,
+        lineY = app.gridTop + i * app.drawCellSize
+        drawLine(app.gridLeft, lineY, app.gridLeft + app.drawDGridSize * app.drawCellSize, lineY,
                 lineWidth=2)
     
     # Draw filled cells
     for row in range(app.drawDGridSize):
         for col in range(app.drawDGridSize):
             if app.drawDGrid[row][col] == 1:
-                cellLeft = app.margin + col * app.drawCellSize
-                cellTop = app.margin + row * app.drawCellSize
-                drawRect(cellLeft, cellTop, 
-                        app.drawCellSize, app.drawCellSize,
-                        fill='black')
+                cellLeft = app.gridLeft + col * app.drawCellSize
+                cellTop = app.gridTop + row * app.drawCellSize
+                drawRect(cellLeft, cellTop, app.drawCellSize, app.drawCellSize, fill='black')
 
 def drawSubdivision(app, pattern):
     if app.subdivision:
         # Calculate cell size for subdivided pattern
-        cell_size = (min(app.width, app.height) - 2*app.margin) / len(pattern)
+        cell_size = (min(app.width, app.height) - 2*app.gridLeft) / len(pattern)
         
         # Draw subdivided pattern
         for y in range(len(pattern)):
             for x in range(len(pattern)):
                 if pattern[y][x]:
-                    drawRect(app.margin + x * cell_size, app.margin + y * cell_size, cell_size, cell_size, fill='black')
+                    drawRect(app.gridLeft + x * cell_size, app.gridTop + y * cell_size, cell_size, cell_size, fill='black')
 
 def draw_redrawAll(app):
+    initialY = 20
     if app.isShowSubd:
         drawSubdivision(app, app.subdivision.pattern)
     else:
         drawDGrid(app)
         if not app.isShowSubd and app.drawDetector.prevX is not None and app.drawDetector.prevY is not None:
             # Map normalized coordinates (0-1) to screen coordinates with grid offset
-            screenX = app.margin + (app.drawDetector.prevX * app.drawDGridSize * app.drawCellSize)
-            screenY = app.margin + (app.drawDetector.prevY * app.drawDGridSize * app.drawCellSize)
+            screenX = app.gridLeft + (app.drawDetector.prevX * app.drawDGridSize * app.drawCellSize)
+            screenY = app.gridTop + (app.drawDetector.prevY * app.drawDGridSize * app.drawCellSize)
             if not app.isShowSubd and app.isHandDraw:
                 cell = getDrawnCell(app, screenX, screenY)
                 if cell:
@@ -230,22 +230,29 @@ def draw_redrawAll(app):
             
     # Draw mode and level info
     drawLabel(f'Draw Game, mode: {"Drawing" if not app.isShowSubd else "Subdivision"}',
-             app.width/2, 20, size=24)
+             app.width/2, initialY, size=app.titleFS)
+    initialY = 20
+    spacing = 15
     if app.isShowSubd and app.subdivision:
         drawLabel(f'Fractal Level: {app.subdivision.fractalLevel}',
-                 app.width/2, 40, size=16)
-    drawLabel(f'Hand Drawing: {"ON" if app.isHandDraw else "OFF"}',
-             app.width/2, 60, size=16)
+                 app.width/2, initialY + spacing, size=app.subtitleFS)
+    drawLabel(f'Build GridSize: {app.gridSize}', app.width/2, initialY + spacing*2, size=app.normalFS)
+    drawLabel(f'Hand Drawing: {"ON" if app.isHandDraw else "OFF"}', app.width/2, initialY + spacing*3, fill = 'red' if app.isHandDraw else 'black', size=app.normalFS)
     
     # Draw instructions
     if app.isShowSubd:
         drawLabel('Press UP/DOWN for subdivision levels, T to return to drawing',
-                 app.width/2, app.height - 20, size=14)
+                 app.width/2, app.height - 20, size=app.normalFS)
     else:
         drawLabel('Click/drag to fill cells, T for subdivision, ESC for start screen',
-                 app.width/2, app.height - 20, size=14)
+                 app.width/2, app.height - 20, size=app.normalFS)
         drawLabel('H to toggle hand drawing, LEFT/RIGHT to resize grid (2-8)',
-                 app.width/2, app.height - 40, size=14)
+                 app.width/2, app.height - 40, size=app.normalFS)
+        drawLabel('S to save pattern, E to export pattern, R to redraw',
+                 app.width/2, app.height - 60, size=app.normalFS)
+    
+    if app.drawHint:
+        drawLabel(app.drawHint, app.width/2, 100, fill='red', size=app.subtitleFS)
 
 def draw_onMouseDrag(app, mouseX, mouseY):
     if not app.isShowSubd:
@@ -256,13 +263,9 @@ def draw_onMouseDrag(app, mouseX, mouseY):
 
 def onHandDraw(app, detector, handX, handY):
     if not app.isShowSubd and detector.prevX is not None and detector.prevY is not None:
-        
-        # map the hand gesture to the grid
-        mappedX = int(handX * app.drawDGridSize)
-        mappedY = int(handY * app.drawDGridSize)
-        print(mappedX, mappedY, app.drawDGridSize)
-        
-        cell = getDrawnCell(app, mappedX, mappedY)
+        screenX = app.gridLeft + (handX * app.drawDGridSize * app.drawCellSize)
+        screenY = app.gridTop + (handY * app.drawDGridSize * app.drawCellSize)
+        cell = getDrawnCell(app, screenX, screenY)
         if cell:
             row, col = cell
             app.drawDGrid[row][col] = 1
@@ -290,9 +293,9 @@ def draw_onKeyPress(app, key):
         if key == 'up':
             app.subdivision.subdivide()
         elif key == 'down' and app.subdivision.fractalLevel > 0:
-            # Reset subdivision but keep initial pattern
+            app.subdivision.fractalLevel -= 1  # Decrement fractal level
             app.subdivision = PatternSubdivision(app.drawDGrid)
-        
+    
     elif key == 'h':
         app.isHandDraw = not app.isHandDraw
     
@@ -309,6 +312,7 @@ def draw_onKeyPress(app, key):
             print('No pattern to save')
         else:
             print(app.importPattern)
+            app.drawHint = "Pattern saved!"
     
     elif key == 'e':
         if app.importPattern is not None:

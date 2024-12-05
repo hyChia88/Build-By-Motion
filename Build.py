@@ -27,7 +27,7 @@ class Grid3D:
     def isPosValid(self, cell):
         positionList = cell.getPlacementPos()
         # print("positionList @ isPosValid:")
-        print(positionList)
+        # print(positionList)
         if isinstance(cell, Cell):
             for pos in positionList:
                 # Check if index within the bound/grid size
@@ -172,7 +172,9 @@ class StairCell(Cell):
     def __init__(self, x, y, z, fracLevel, app):
         super().__init__(x, y, z, fracLevel, app)
         self.resizable = False
-        self.pattern = [[[True, True, True, True], [True, False, False, False], [True, True, True, True], [True, False, False, True]]]
+        self.pattern = [[[True, True], [True, False]], 
+                        [[True, True], [False, False]], 
+                        [[True, False], [False, False]]]
         self.name = "Stair"
 
 class ImageCell(Cell):
@@ -195,11 +197,11 @@ class ImageCell(Cell):
             self.pattern = app.importPattern
         else:
             # Default Image Cell
-            self.pattern = [[[True, True, False, True, True],
-                            [False, True, False, True, False],
-                            [False, False, True, False, False],
-                            [False, True, False, True, False],
-                            [True, True, False, True, True]]]
+            defaultImgPattern = [[[True, True, False, True, True],
+                                  [False, False, False, False, False],
+                                  [False, False, True, False, False],
+                                  [True, True, False, True, True]]]
+            self.pattern = self.reMap(app.gridSize, app.gridSize, defaultImgPattern)
 
     def process_image(self,filename):
         # Load image directly in grayscale
@@ -369,9 +371,9 @@ class Draw:
         drawLine(centerPt[0], centerPt[1], endOfY[0], endOfY[1], fill=gridColor, dashes=True)
         drawLine(centerPt[0], centerPt[1], endOfZ[0], endOfZ[1], fill=gridColor, dashes=True)
         
-        drawLabel(f'x', endOfX[0], endOfX[1], size=20)
-        drawLabel(f'y', endOfY[0], endOfY[1], size=20)
-        drawLabel(f'z', endOfZ[0], endOfZ[1], size=20)
+        drawLabel(f'x', endOfX[0], endOfX[1], size=app.normalFS)
+        drawLabel(f'y', endOfY[0], endOfY[1], size=app.normalFS)
+        drawLabel(f'z', endOfZ[0], endOfZ[1], size=app.normalFS)
         
         # Draw grid boundaries along X axis
         for i in range(app.gridSize + 1):
@@ -859,17 +861,13 @@ def buildInit(app):
     app.currentX = 0
     app.currentY = 0
     app.currentZ = 0
-    app.drawCurrColor = 'blue'
 
-    app.currCtrlPos = [[app.currentX, app.currentY, app.currentZ]]
     app.posListAll = []
     app.lastValidX = 0
     app.lastValidY = 0
-    app.gridScale = 1
     app.gridSize = 4
     app.cellSize = 50
     app.newSize = 1
-    app.angle = 30
     app.fracLevel = 1
     app.subdLvl = 0
     
@@ -897,7 +895,7 @@ def buildInit(app):
     app.image = None
     app.frameImgX = 80
     app.frameImgSize = 250
-    app.buttonSize = 30
+    app.buttonSize = 20
 
     # check if the current cell is valid
     app.isPosValid = app.grid.isPosValid(app.cell)
@@ -905,6 +903,8 @@ def buildInit(app):
     
     # Draw error hint:
     app.hint = None
+    app.instructionY = 50
+    app.spacing = 15
 
 def onAppStop(app):
     app.detector.cleanup()
@@ -914,9 +914,12 @@ def build_onMousePress(app, mouseX, mouseY):
     app.lastMouseX = mouseX
     app.lastMouseY = mouseY
     
+    markingY = app.instructionY + app.spacing*17 + app.frameImgSize
+    markingX = app.frameImgX + app.frameImgSize/2
+    
     # Import button
-    if (app.frameImgX + app.frameImgSize/2 - app.buttonSize - app.buttonSize/2 < mouseX < app.frameImgX + app.frameImgSize/2 - app.buttonSize + app.buttonSize/2 and
-        app.height/2 + app.frameImgSize/2 + app.buttonSize - app.buttonSize/2 < mouseY < app.height/2 + app.height/2 + app.frameImgSize/2 + app.buttonSize + app.buttonSize/2):
+    if (markingX - app.buttonSize*(3/2) < mouseX < markingX - app.buttonSize/2 and
+        markingY + app.buttonSize - app.buttonSize/2 < mouseY < markingY + app.buttonSize + app.buttonSize/2):
         print("Import image clicked!")
         try:
             # Try to load the image using CMU Graphics
@@ -930,24 +933,25 @@ def build_onMousePress(app, mouseX, mouseY):
             return
 
     # Remove import button
-    if (app.frameImgX + app.frameImgSize/2 + app.buttonSize - app.buttonSize/2 < mouseX < app.frameImgX + app.frameImgSize/2 + app.buttonSize + app.buttonSize/2 and
-        app.height/2 + app.frameImgSize/2 + app.buttonSize - app.buttonSize/2 < mouseY < app.height/2 + app.frameImgSize/2 + app.buttonSize + app.buttonSize/2):
+    if (markingX + app.buttonSize/2 < mouseX < markingX + app.buttonSize*(3/2) and
+        markingY + app.buttonSize - app.buttonSize/2 < mouseY < markingY + app.buttonSize + app.buttonSize/2):
         print("Image remove clicked!")
         app.showImage = False
         app.image = None #set as None, image cell pattern goes to default
     
     # Draw button
-    if (app.frameImgX + app.frameImgSize/2 -app.buttonSize/2 < mouseX < app.frameImgX + app.frameImgSize/2 + app.buttonSize/2 and
-        app.height/2 + app.frameImgSize/2 + app.buttonSize*3 - app.buttonSize/2 < mouseY < app.height/2 + app.frameImgSize/2 + app.buttonSize*3 + app.buttonSize/2):
+    axisX = app.frameImgX + app.frameImgSize/2
+    if (axisX + 100 - app.buttonSize/2 < mouseX < axisX + 100 + app.buttonSize/2 and
+        markingY + app.buttonSize*2 + app.spacing - app.buttonSize/2 < mouseY < markingY + app.buttonSize*2 + app.spacing + app.buttonSize/2):
         print("Draw clicked! Go to draw screen")
         setActiveScreen('draw')
-    
+
 def build_onMouseDrag(app, mouseX, mouseY):
     if app.dragging:
         dx = mouseX - app.lastMouseX
         dy = mouseY - app.lastMouseY
-        app.rotationY += dx * 0.01
-        app.rotationX += dy * 0.01
+        app.rotationY -= dx * 0.01
+        app.rotationX -= dy * 0.01
         # app.rotationX = app.rotationX % (2 * math.pi)
         if app.rotationX > math.pi/2:
             app.rotationX = math.pi/2
@@ -1002,13 +1006,13 @@ def build_onKeyPress(app, key):
     # Change the grid size
     elif key == 'up':
         if app.gridSize < 32:
-            app.gridSize = app.gridSize *2
+            app.gridSize = app.gridSize + 2
             app.grid = Grid3D(app.cellSize, app.gridSize)
             print(f"gridSize to: {app.gridSize}") 
 
     elif key == 'down':
         if app.gridSize > 1:
-            app.gridSize = app.gridSize //2
+            app.gridSize = app.gridSize - 2
             app.grid = Grid3D(app.cellSize, app.gridSize)
             print(f"gridSize to: {app.gridSize}")
             
@@ -1079,7 +1083,7 @@ def build_onStep(app):
 
 def build_redrawAll(app):
     # title
-    drawLabel('Build Game',app.width/2, 20, size=24)
+    drawLabel('Build Game',app.width/2, 20, size=app.titleFS)
     
     # Main drawing
     # problem here : keep calling the drawGrid
@@ -1087,56 +1091,53 @@ def build_redrawAll(app):
     drawGrid(app, app.cell.getPlacementPos(), False)
     
     # Instructions section
-    instructionY = 60
-    spacing = 15
+    axisX = app.frameImgX + app.frameImgSize/2
     
     # Movement controls
-    drawLabel('Controls:', app.width/2, instructionY, size=15, bold=True)
-    drawLabel('• Use hand gestures to move the cube in X/Y plane', app.width/2, instructionY + spacing,size=12)
-    drawLabel('• Hold index and middle fingers together to move in Z axis', app.width/2, instructionY + spacing*2,size=12)
+    drawLabel('Controls:', axisX, app.instructionY, size=app.normalFS, bold=True)
+    drawLabel('• Use hand gestures to move the cube in X/Y plane', axisX, app.instructionY + app.spacing,size=app.normalFS)
+    drawLabel('• Hold index and middle fingers together to move in Z axis', axisX, app.instructionY + app.spacing*2,size=app.normalFS)
     
     # Building controls
-    drawLabel('Building:', app.width/2, instructionY + spacing*4, size=15, bold=True)
-    drawLabel('• SPACE: Place cube', app.width/2, instructionY + spacing*5,size=12)
-    drawLabel('• 1-4: Change block type (1:Default, 2:L-Shape, 3:T-Shape, 4:Stair)', app.width/2, instructionY + spacing*6,size=12)
-    drawLabel('• Q/E: Increase/Decrease cube size', app.width/2, instructionY + spacing*7,size=12)
-    
-    # View controls
-    drawLabel('View Controls:', app.width/2, instructionY + spacing*9, size=15, bold=True)
-    drawLabel('• Drag mouse: Rotate view', app.width/2, instructionY + spacing*10,size=12)
-    drawLabel('• Left/Right arrows: Zoom in/out', app.width/2, instructionY + spacing*11,size=12)
-    drawLabel('• Up/Down arrows: Change grid size', app.width/2, instructionY + spacing*12,size=12)
-    
+    drawLabel('Building:', axisX, app.instructionY + app.spacing*4, size=app.normalFS, bold=True)
+    drawLabel('• SPACE: Place cube', axisX, app.instructionY + app.spacing*5,size=app.normalFS)
+    drawLabel('• 1-4: Change block type (1:Default, 2:L-Shape, 3:T-Shape, 4:Stair)', axisX, app.instructionY + app.spacing*6,size=12)
+    drawLabel('• 5/6: Increase/Decrease cube size (only for default cell)', axisX, app.instructionY + app.spacing*7,size=app.normalFS)
+    drawLabel('• X: Change to ImageCell', axisX, app.instructionY + app.spacing*8,size=app.normalFS)
+
     # Special features
-    drawLabel('Special Features:', app.width/2, instructionY + spacing*14, size=15, bold=True)
-    drawLabel('• d: delete current cell', app.width/2, instructionY + spacing*15,size=12)
-    drawLabel('• [ ]: Adjust subdivide level (current: ' + str(app.fracLevel) + ')', app.width/2, instructionY + spacing*16,size=12)
-    drawLabel('• R: Reset game', app.width/2, instructionY + spacing*17,size=12)
+    drawLabel('Special Features:', axisX, app.instructionY + app.spacing*10, size=app.normalFS, bold=True)
+    drawLabel('• d: delete current cell', axisX, app.instructionY + app.spacing*11,size=app.normalFS)
+    drawLabel('• [ ]: Adjust subdivide level (current: ' + str(app.subdLvl) + ')', axisX, app.instructionY + app.spacing*12,size=app.normalFS)
+    drawLabel('• R: Reset game', axisX, app.instructionY + app.spacing*13,size=app.normalFS)
+    drawLabel('• Import/Remove image: Use buttons below', axisX, app.instructionY + app.spacing*14,size=app.normalFS)
     
     # Current position and hand detection status
-    drawLabel(f'Current Position: ({app.currentX}, {app.currentY}, {app.currentZ})', 
-             app.width/2, app.height - spacing*2,size=12)
+    drawLabel(f'Current Position: ({app.cell})', axisX, app.height - app.spacing*2,size=app.normalFS)
     
     if app.hint:
-        drawLabel('Hint!', app.width/2, app.height - spacing*3,size=12, fill='red')
+        drawLabel('Hint!', axisX, app.height - app.spacing*3,size=app.normalFS, fill='red')
     
     if app.handCountX or app.handCountY:
         drawLabel(f'Hand Position: ({pythonRound(app.handCountX, 2)}, {pythonRound(app.handCountY, 2)})', 
-                 app.width/2, app.height - spacing,size=12)
+                 axisX, app.height - app.spacing,size=app.normalFS)
     else:
         drawLabel('Hand not detected - Move your hand to control the cube', 
-                 app.width/2, app.height - spacing,size=12, fill='red')
+                 axisX, app.height - app.spacing,size=app.normalFS, fill='red')
     
     # import the image 
     if app.image and app.showImage:
-        drawImage("imageCell.jpg", app.frameImgX, app.height/2-app.frameImgSize/2, width=app.frameImgSize, height=app.frameImgSize)
+        drawImage("imageCell.jpg", app.frameImgX, app.instructionY + app.spacing*16, width=app.frameImgSize, height=app.frameImgSize)
     elif app.importPattern:
-        drawLabel("Drawn Pattern exists", app.frameImgX+app.frameImgSize/2, app.height/2-app.frameImgSize/2 + app.frameImgSize/2, align = "center")
+        drawLabel("Drawn Pattern exists, press X to place", app.frameImgX+app.frameImgSize/2, app.instructionY + app.spacing*16 + app.frameImgSize/2, size=app.normalFS, align = "center")
     else:
-        drawLabel("No image file! Import imageCell.jpg", app.frameImgX+app.frameImgSize/2, app.height/2-app.frameImgSize/2 + app.frameImgSize/2, align = "center")
+        drawLabel("No image file! Import imageCell.jpg", app.frameImgX+app.frameImgSize/2, app.instructionY + app.spacing*16 + app.frameImgSize/2, size=app.normalFS, align = "center")
         
-    drawRect(app.frameImgX, app.height/2-app.frameImgSize/2, app.frameImgSize, app.frameImgSize, fill=None, border='black')
-    drawImage('importIcon.png', app.frameImgX + app.frameImgSize/2 - app.buttonSize, app.height/2 + app.frameImgSize/2 + app.buttonSize, width=app.buttonSize, height=app.buttonSize, align = "center")
-    drawImage('removeIcon.png', app.frameImgX + app.frameImgSize/2 + app.buttonSize, app.height/2 + app.frameImgSize/2 + app.buttonSize, width=app.buttonSize, height=app.buttonSize, align = "center")
+    drawRect(app.frameImgX, app.instructionY + app.spacing*16, app.frameImgSize, app.frameImgSize, fill=None, border='black', borderWidth=2)
+    
+    markingY = app.instructionY + app.spacing*17 + app.frameImgSize
+    drawImage('importIcon.png', app.frameImgX + app.frameImgSize/2 - app.buttonSize, markingY + app.buttonSize, width=app.buttonSize, height=app.buttonSize, align = "center")
+    drawImage('removeIcon.png', app.frameImgX + app.frameImgSize/2 + app.buttonSize, markingY + app.buttonSize, width=app.buttonSize, height=app.buttonSize, align = "center")
 
-    drawImage('drawIcon.png', app.frameImgX + app.frameImgSize/2, app.height/2 + app.frameImgSize/2 + app.buttonSize*3, width=app.buttonSize, height=app.buttonSize, align = "center")
+    drawLabel('You can draw the pattern yourself too!', axisX - 20, markingY + app.buttonSize*2 + app.spacing, size=app.normalFS, bold=True)
+    drawImage('drawIcon.png', axisX + 110, markingY + app.buttonSize*2 + app.spacing, width=app.buttonSize, height=app.buttonSize, align="center")

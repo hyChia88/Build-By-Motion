@@ -205,3 +205,8 @@ reset [/]
 escape working back to start screen [/]
 
 export to build [/]
+UIUX all tuned [/]
+
+Further:
+[ ] blocks in build able to turn 90 degree in 3d grid
+[ ] draw of subdivision able to import (now only import the actual draw)
