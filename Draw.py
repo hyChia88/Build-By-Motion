@@ -2,7 +2,6 @@
 draw page
 This is the drawing page that allows the user to draw on a grid
 '''
-from scipy import spatial
 from cmu_graphics import *
 import cv2
 import mediapipe as mp
@@ -55,8 +54,9 @@ class PatternSubdivision:
         
         self.pattern = newPattern
         self.fractalLevel += 1
-    
-    # Calculate the average of the 8 neighbors, with some help from ChatGPT.
+    '''
+    Calculate the average of the 8 neighbors, with code inspiration from ChatGPT. If the threshold is 0.5, then it is 1, otherwise 0
+    '''
     def getNeighborAverage(self, x, y):
         count = 0
         total = 0
@@ -68,7 +68,9 @@ class PatternSubdivision:
                     count += 1
         return total / count > 0.5
 
-# Mainly reference from https://youtu.be/RRBXVu5UE-U?si=FTBWxNPHmmu-KmW6 (same as Build.py)
+'''
+Mainly reference from https://youtu.be/RRBXVu5UE-U?si=FTBWxNPHmmu-KmW6 (same as Build.py)
+'''
 class HandGestureDetector:
     def __init__(self):
         self.mp_hands = mp.solutions.hands

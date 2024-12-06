@@ -218,6 +218,14 @@ Further:
 [ ] blocks in build able to turn 90 degree in 3d grid
 [ ] draw of subdivision able to import (now only import the actual draw)
 https://graphics.stanford.edu/courses/cs468-10-fall/LectureSlides/08_Simplification.pdf
-[ ] remove still hv some problem
+[/] remove still hv some problem
 
-[Yellow (With Deductions)] Hi Huiyen! Please make sure to follow the formatting for the project proposal and storyboard! The storyboard should be drawings that you make and not screenshots of your project. Reminder also that tkinter is absolutely disallowed and should not be used! As for your progress, as we talked about in our meeting, your project is not considered completed yet, but you’re super close! You just need to fix bugs, make the UI better, have the menu page lead to the two different modes rather than having to run from two files, and work on the feature of taking a picture and analyzing it into block patterns. The rest of your project is looking super solid though! I really like the unique subdivisions that you came up with. Keep up the great work! -Lucy :)
+[Yellow (With Deductions)] Hi Huiyen! 
+Please make sure to follow the formatting for the project proposal and storyboard! The storyboard should be drawings that you make and not screenshots of your project. 
+
+Reminder also that tkinter is absolutely disallowed and should not be used! As for your progress, as we talked about in our meeting, your project is not considered completed yet, but you’re super close! 
+
+You just need to fix bugs, make the UI better, have the menu page lead to the two different modes rather than having to run from two files, and work on the feature of taking a picture and analyzing it into block patterns. 
+
+The rest of your project is looking super solid though! I really like the unique subdivisions that you came up with. Keep up the great work! -Lucy :)
+

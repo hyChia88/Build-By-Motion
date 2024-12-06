@@ -48,6 +48,6 @@ def start_onMousePress(app, mouseX, mouseY):
 ############################################################
 
 def main():
-    runAppWithScreens(initialScreen='build', width=1200, height=750)
+    runAppWithScreens(initialScreen='start', width=1200, height=750)
 
 main()
