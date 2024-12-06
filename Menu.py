@@ -3,11 +3,12 @@ from cmu_graphics import *
 from Build import *
 from Draw import *
 '''
+Reference:
 https://academy.cs.cmu.edu/cpcs-docs/screens
 '''
 def onAppStart(app):
     # The model is shared between all screens
-    app.setMaxShapeCount(5000)
+    app.setMaxShapeCount(8000)
     app.spacingMenu = 30
     app.logoHeight = 200
     app.drawnPattern = None
@@ -47,6 +48,6 @@ def start_onMousePress(app, mouseX, mouseY):
 ############################################################
 
 def main():
-    runAppWithScreens(initialScreen='start', width=1200, height=750)
+    runAppWithScreens(initialScreen='build', width=1200, height=750)
 
 main()
