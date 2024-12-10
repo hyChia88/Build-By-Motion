@@ -220,12 +220,47 @@ Further:
 https://graphics.stanford.edu/courses/cs468-10-fall/LectureSlides/08_Simplification.pdf
 [/] remove still hv some problem
 
-[Yellow (With Deductions)] Hi Huiyen! 
-Please make sure to follow the formatting for the project proposal and storyboard! The storyboard should be drawings that you make and not screenshots of your project. 
+=============================================================================
+Showcase:
+START Page:
+1. Space to start
 
-Reminder also that tkinter is absolutely disallowed and should not be used! As for your progress, as we talked about in our meeting, your project is not considered completed yet, but you’re super close! 
+BUILD Page:
+1. View:
+- view in 3d, drag to rotate, zoom in/out, change grid size
+2. Control:
+- Move cell -> hand
+- Place -> space
+- Del -> x
+- 1-6 -> change cell type
+- 7 -> Image Cell
+   - Import image.jpg
+   - Draw -> Jump to DRAW Page
 
-You just need to fix bugs, make the UI better, have the menu page lead to the two different modes rather than having to run from two files, and work on the feature of taking a picture and analyzing it into block patterns. 
+      DRAW Page:
+      - Draw cell -> hand/mouse drag
+      - right/left -> change grid size
+      - r -> reset
+      After done,
+      - s & e -> saved & export
 
-The rest of your project is looking super solid though! I really like the unique subdivisions that you came up with. Keep up the great work! -Lucy :)
+3. Advanced/sophiscated:
+After done a few pattern drawing,
+- [/] -> Subd
+
+4. Done
+- r to reset
+- esc yo exit
+
+===================================================
+- How to draw:
+DrawLogic
+DrawGrid(posList) -> DrawCell(posList):do clean & proj -> BasicProj(CleanposList)
+App.grid as a 3d list, construct & store all the pos
+
+CMC Subd
+Taking ver mid pt repeatly to get new point and add into it
+do clean by dict to reduce dup pts/face
+
+OpenCV to parse image
 

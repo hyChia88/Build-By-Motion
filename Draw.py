@@ -7,6 +7,7 @@ import cv2
 import mediapipe as mp
 from Build import *
 
+# For future use, wont implement this time.
 class PatternSubdivision:
     def __init__(self, initial_pattern):
         self.fractalLevel = 0
@@ -180,7 +181,7 @@ def getDrawnCell(app, mouseX, mouseY):
         return (row, col)
     return None
 
-def drawDGrid(app):
+def drawDGridMethod(app):
     # Draw background
     drawRect(0, 0, app.width, app.height, fill='white')
 
@@ -193,8 +194,7 @@ def drawDGrid(app):
         lineY = app.gridTop + i * app.drawCellSize
         drawLine(app.gridLeft, lineY, app.gridLeft + app.drawDGridSize * app.drawCellSize, lineY,
                 lineWidth=2)
-    
-    # Draw filled cells
+
     for row in range(app.drawDGridSize):
         for col in range(app.drawDGridSize):
             if app.drawDGrid[row][col] == 1:
@@ -218,39 +218,33 @@ def draw_redrawAll(app):
     if app.isShowSubd:
         drawSubdivision(app, app.subdivision.pattern)
     else:
-        drawDGrid(app)
+        drawDGridMethod(app)
         if not app.isShowSubd and app.drawDetector.prevX is not None and app.drawDetector.prevY is not None:
             # Map normalized coordinates (0-1) to screen coordinates with grid offset
             screenX = app.gridLeft + (app.drawDetector.prevX * app.drawDGridSize * app.drawCellSize)
             screenY = app.gridTop + (app.drawDetector.prevY * app.drawDGridSize * app.drawCellSize)
-            if not app.isShowSubd and app.isHandDraw:
-                cell = getDrawnCell(app, screenX, screenY)
-                if cell:
-                    row, col = cell
-                    app.drawDGrid[row][col] = 1
             drawCircle(screenX, screenY, 10, fill='red', opacity=50)
             
     # Draw mode and level info
-    drawLabel(f'Draw Game, mode: {"Drawing" if not app.isShowSubd else "Subdivision"}',
+    drawLabel(f'Draw pattern to build!',
              app.width/2, initialY, size=app.titleFS)
     initialY = 20
     spacing = 15
-    if app.isShowSubd and app.subdivision:
-        drawLabel(f'Fractal Level: {app.subdivision.fractalLevel}',
-                 app.width/2, initialY + spacing, size=app.subtitleFS)
+    # if app.isShowSubd and app.subdivision:
+    #     drawLabel(f'Fractal Level: {app.subdivision.fractalLevel}',
+    #              app.width/2, initialY + spacing, size=app.subtitleFS)
     drawLabel(f'Build GridSize: {app.gridSize}', app.width/2, initialY + spacing*2, size=app.normalFS)
     drawLabel(f'Hand Drawing: {"ON" if app.isHandDraw else "OFF"}', app.width/2, initialY + spacing*3, fill = 'red' if app.isHandDraw else 'black', size=app.normalFS)
     
-    # Draw instructions
-    if app.isShowSubd:
-        drawLabel('Press UP/DOWN for subdivision levels, T to return to drawing',
-                 app.width/2, app.height - 20, size=app.normalFS)
-    else:
-        drawLabel('Click/drag to fill cells, T for subdivision, ESC for start screen',
-                 app.width/2, app.height - 20, size=app.normalFS)
-        drawLabel('H to toggle hand drawing, LEFT/RIGHT to resize grid (2-8)',
-                 app.width/2, app.height - 40, size=app.normalFS)
-        drawLabel('S to save pattern, E to export pattern, R to redraw',
+    # # Draw instructions
+    # if app.isShowSubd:
+    #     drawLabel('Press UP/DOWN for subdivision levels, T to return to drawing',
+    #              app.width/2, app.height - 20, size=app.normalFS)
+    drawLabel('Click/drag to fill cells, T for subdivision, ESC for start screen',
+                app.width/2, app.height - 20, size=app.normalFS)
+    drawLabel('H to toggle hand drawing, LEFT/RIGHT to resize grid (2-8)',
+                app.width/2, app.height - 40, size=app.normalFS)
+    drawLabel('S to save pattern, E to export pattern, R to redraw',
                  app.width/2, app.height - 60, size=app.normalFS)
     
     if app.drawHint:
@@ -264,13 +258,15 @@ def draw_onMouseDrag(app, mouseX, mouseY):
             app.drawDGrid[row][col] = 1
 
 def onHandDraw(app, detector, handX, handY):
-    if not app.isShowSubd and detector.prevX is not None and detector.prevY is not None:
+    if detector.prevX is not None and detector.prevY is not None and app.isHandDraw:
         screenX = app.gridLeft + (handX * app.drawDGridSize * app.drawCellSize)
         screenY = app.gridTop + (handY * app.drawDGridSize * app.drawCellSize)
         cell = getDrawnCell(app, screenX, screenY)
+        print("cell@onHandDraw:", cell)
         if cell:
             row, col = cell
             app.drawDGrid[row][col] = 1
+            print("done")
 
 def changeToBool(pattern):
     return [[True if cell == 1 else False for cell in row] for row in pattern]
@@ -285,11 +281,12 @@ def draw_onKeyPress(app, key):
             if app.drawDGridSize > 2:
                 resizeGrid(app, app.drawDGridSize - 1)
 
-    if key == 't':  # Toggle between draw and subdivision modes
-        app.isShowSubd = not app.isShowSubd
-        if app.isShowSubd and app.subdivision is None:
-            # Initialize subdivision with current grid
-            app.subdivision = PatternSubdivision(app.drawDGrid)
+    # A function for future.
+    # if key == 't':  # Toggle between draw and subdivision modes
+    #     app.isShowSubd = not app.isShowSubd
+    #     if app.isShowSubd and app.subdivision is None:
+    #         # Initialize subdivision with current grid
+    #         app.subdivision = PatternSubdivision(app.drawDGrid)
     
     elif app.isShowSubd:
         if key == 'up':
@@ -314,7 +311,7 @@ def draw_onKeyPress(app, key):
             print('No pattern to save')
         else:
             print(app.importPattern)
-            app.drawHint = "Pattern saved!, Now hit E to export."
+            app.drawHint = "Pattern saved! Now hit E to export."
     
     elif key == 'e':
         if app.importPattern is not None:
