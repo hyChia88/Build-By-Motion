@@ -1,8 +1,8 @@
 # Build By Motion
-*Pattern Generator Tool based on Hand Gesture, term project for 15112 CMU   
-Author: Chia Hui Yen  
-Mentor: Professor Austin & Lucy   
-Date: 2024 Fall* 
+**Author:** Chia Hui Yen  
+**Mentor:** Professor Austin & Lucy   
+**Date:** 2024 Fall  
+Pattern Generator Tool based on Hand Gesture, term project for 15112 CMU   
   
 <div align="center"> <br><img src = "https://github.com/user-attachments/assets/10b006f0-b43d-4268-a5a3-8a1f17ce0497"></br></div>
 <table>
@@ -12,8 +12,9 @@ Date: 2024 Fall*
     <td><img src="https://github.com/user-attachments/assets/85d89eea-a023-4e3b-8bd0-8b0ade7ca896"/></td>
   </tr>
 </table>
+
   
-## Overview 
+## About the project 
 This application explores the potential of using body gestures to build, draw, and create geometric patterns. It is an experiment—a brief demo or prototype—to test the experience of controlling building blocks with hand gestures.   
 Currently, the gestures are limited to moving cells. In my ultimate vision, this project will operate within VR, XR, or MR environments, turning it into an immersive game or creative tool.  
   
