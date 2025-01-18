@@ -1,8 +1,8 @@
 # Build By Motion
-*Pattern Generator Tool based on Hand Gesture, term project for 15112 CMU*  
+*Pattern Generator Tool based on Hand Gesture, term project for 15112 CMU   
 Author: Chia Hui Yen  
 Mentor: Professor Austin & Lucy   
-Date: 2024 Fall 
+Date: 2024 Fall* 
 
 <div align="center"> <br><img src = "https://github.com/user-attachments/assets/10b006f0-b43d-4268-a5a3-8a1f17ce0497"></br></div>
 <table>
